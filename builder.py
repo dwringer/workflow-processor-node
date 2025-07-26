@@ -69,7 +69,8 @@ class FieldListBuilderStringInvocation(FieldListBuilderInvocation):
     )
 
     def invoke(self, context: InvocationContext) -> StringOutput:
-        return super().invoke(context)
+        return_value : StringOutput = super().invoke(context)
+        return return_value
     
 @invocation(
     "field_list_builder_integer",
@@ -89,7 +90,9 @@ class FieldListBuilderIntegerInvocation(FieldListBuilderInvocation):
     )
 
     def invoke(self, context: InvocationContext) -> StringOutput:
-        return super().invoke(context)
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
 
 @invocation(
     "field_list_builder_float",
@@ -109,7 +112,9 @@ class FieldListBuilderFloatInvocation(FieldListBuilderInvocation):
     )
 
     def invoke(self, context: InvocationContext) -> StringOutput:
-        return super().invoke(context)
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
 
 @invocation(
     "field_list_builder_boolean",
@@ -129,7 +134,8 @@ class FieldListBuilderBooleanInvocation(FieldListBuilderInvocation):
     )
 
     def invoke(self, context: InvocationContext) -> StringOutput:
-        return super().invoke(context)
+        return_value : StringOutput = super().invoke(context)
+        return return_value
 
 
 @invocation(
@@ -175,4 +181,5 @@ class FieldListBuilderJoinInvocation(BaseInvocation):
         
         output_json_string = json.dumps(output_json_obj)
 
-        return StringOutput(value=output_json_string)
+        return_value = StringOutput(value=output_json_string)
+        return return_value
