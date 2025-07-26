@@ -24,284 +24,6 @@ from invokeai.invocation_api import (
 from invokeai.backend.util.logging import info, warning, error
 
 
-# # --- Your WorkflowProcessor Class (Copied for Self-Contained) ---
-# class WorkflowProcessor:
-#     """
-#     The WorkflowProcessor is designed to bridge the gap between a raw InvokeAI
-#     workflow JSON and a user-friendly API for parameter adjustments.
-
-#     It performs three primary functions:
-#     1.  **Parsing:** Extracts relevant user-exposed input fields from the
-#         complex InvokeAI workflow JSON, specifically from the 'form' section,
-#         organizing them into an ordered, internally manageable structure.
-#     2.  **Schema Generation:** Dynamically creates a Pydantic `BaseModel` schema
-#         that defines the expected structure of user input. This schema is designed
-#         to be both simple for the user to provide and informative for developers
-#         to understand available fields.
-#     3.  **Input Application:** Takes validated user inputs and intelligently
-#         applies them to the correct fields within the workflow's graph nodes AND
-#         the workflow's node definitions, preparing the payload for submission
-#         to the InvokeAI backend.
-
-#     A key design choice is to support simplified user input (e.g., `{"value": 100}`)
-#     even when multiple nodes in the workflow might have fields with the same name.
-#     This is achieved by relying on the *relative order* of duplicate field names
-#     in the user's input list, matching them to the order defined in the workflow's
-#     'form' section 'children' list.
-#     """
-
-#     # Mapping from InvokeAI field type configurations to Python types
-#     _type_map: Dict[str, Type] = {
-#         "integer-field-config": int,
-#         "float-field-config": float,
-#         "string-field-config": str,
-#         "ImageField": str, # User provides image name as string, payload expects {"image_name": "..."}
-#         "boolean-field-config": bool, # Added boolean
-#     }
-
-#     def __init__(self, workflow_payload_path: Path):
-#         """
-#         Initializes the processor by loading the base workflow payload and parsing its structure.
-
-#         Args:
-#             workflow_payload_path: The path to the base enqueue_batch JSON payload file.
-#         """
-#         if not workflow_payload_path.exists():
-#             raise FileNotFoundError(f"Workflow payload file not found: {workflow_payload_path}")
-#         try:
-#             with open(workflow_payload_path, 'r', encoding='utf-8') as f:
-#                 self._workflow_payload = json.load(f)
-#         except json.JSONDecodeError as e:
-#             raise ValueError(f"Invalid JSON format in {workflow_payload_path}: {e}")
-
-#         # Deep copy for modification
-#         # It's good practice to make a copy of the base nodes for applying inputs,
-#         # ensuring the original _workflow_payload object isn't altered
-#         # by subsequent calls to apply_inputs if this processor instance is reused.
-#         # This will be used as the starting point for `final_payload` in `apply_inputs`.
-#         self._base_batch_graph_nodes = copy.deepcopy(self._workflow_payload['batch']['graph']['nodes'])
-#         self._base_workflow_nodes = copy.deepcopy(self._workflow_payload['batch']['workflow']['nodes'])
-
-
-#         # Build the ordered list of exposed fields for schema generation and input application
-#         self._ordered_exposed_fields = self._build_ordered_exposed_fields_list()
-#         info(f"--- Detected Order of Exposed Fields for {workflow_payload_path.name} ---")
-#         for i, field in enumerate(self._ordered_exposed_fields):
-#             info(f"  {i+1}. {field['label']} ({field['field_name']}) [node: {field['node_id']}]")
-
-#     def _build_ordered_exposed_fields_list(self) -> List[Dict[str, Any]]:
-#         """
-#         Parses the workflow's 'form' section to create an ordered list of
-#         user-exposed fields. This order is crucial for handling duplicate field names.
-#         """
-#         exposed_elements_in_order = []
-#         workflow_form = self._workflow_payload.get('batch', {}).get('workflow', {}).get('form', {})
-#         root_element_id = workflow_form.get('rootElementId')
-
-#         if not root_element_id or 'elements' not in workflow_form:
-#             warning("Workflow form or root element not found. No exposed fields detected.")
-#             return []
-
-#         elements_map = workflow_form['elements']
-
-#         def recurse_for_exposed_elements(element_id: str):
-#             element = elements_map.get(element_id)
-#             if not element:
-#                 return
-
-#             if element.get('type') == 'node-field':
-#                 exposed_elements_in_order.append(element)
-#             elif element.get('type') == 'container':
-#                 if 'data' in element and 'children' in element['data']:
-#                     for child_id in element['data']['children']:
-#                         recurse_for_exposed_elements(child_id)
-
-#         recurse_for_exposed_elements(root_element_id)
-
-#         # Process the raw exposed field elements to extract relevant info
-#         processed_fields = []
-#         for field_element in exposed_elements_in_order:
-#             field_data = field_element.get('data', {})
-#             field_identifier = field_data.get('fieldIdentifier', {})
-#             field_settings = field_data.get('settings', {})
-
-#             node_id = field_identifier.get('nodeId')
-#             field_name = field_identifier.get('fieldName')
-#             # Prefer 'label' from settings, then from data, then default to field_name
-#             field_label = field_settings.get('label') or field_data.get('label') or field_name
-#             field_type_config = field_settings.get('type')
-
-#             # Determine the Pydantic type for the schema based on InvokeAI's type config
-#             pydantic_type = self._type_map.get(field_type_config)
-#             if not pydantic_type:
-#                 # Fallback based on component type or common names if type_config is missing or unknown
-#                 component_type = field_settings.get('component')
-#                 if component_type == 'number-input':
-#                     pydantic_type = float # Default to float for generic number inputs
-#                 elif field_name in ['prompt', 'text', 'notes', 'description', 'label', 'custom_label']:
-#                     pydantic_type = str
-#                 elif field_name == "image":
-#                     pydantic_type = str # For schema, it's a string (image_name)
-#                     field_type_config = "ImageField" # Standardize internal representation
-#                 elif field_name in ["true", "false", "add_noise", "expand_to_fit", "flip_horizontal", "flip_vertical", "disable", "normalize_channels", "use_gaussian_mutation", "expand_t5_embeddings", "scale_delta_output", "touch_timestamp"]:
-#                     pydantic_type = bool
-#                     field_type_config = "boolean-field-config" # Standardize internal representation
-#                 else:
-#                     warning(f"Unknown field type configuration '{field_type_config}' "
-#                             f"or component '{component_type}' for field '{field_name}' in node '{node_id}'. "
-#                             f"Defaulting to str for schema generation.")
-#                     pydantic_type = str
-
-#             # Ensure label is not an empty string, set to None for cleaner output
-#             if field_label == "":
-#                 field_label = None
-
-#             processed_fields.append({
-#                 "element_id": field_element.get('id'),
-#                 "node_id": node_id,
-#                 "field_name": field_name,
-#                 "label": field_label,
-#                 "type_config": field_type_config,
-#                 "pydantic_type": pydantic_type,
-#             })
-#         return processed_fields
-
-#     def get_input_schema(self) -> Type[BaseModel]:
-#         """
-#         Generates a Pydantic BaseModel schema based on the exposed input fields.
-#         This schema is suitable for validating user API inputs.
-#         """
-#         fields = {}
-#         descriptions = []
-#         for i, field_info in enumerate(self._ordered_exposed_fields):
-#             element_id = field_info['element_id']
-#             field_name_in_node = field_info['field_name']
-#             field_label = field_info['label'] or field_name_in_node # Fallback to field_name_in_node if label is None
-#             pydantic_type = field_info['pydantic_type']
-
-#             # Use element_id as the field name in the Pydantic schema
-#             fields[element_id] = (Optional[pydantic_type], Field(
-#                 default=None, # All fields are optional at this level, user provides what they want to update
-#                 title=field_label,
-#                 description=(f"Node ID: {field_info['node_id']}, Field Name: {field_name_in_node}, "
-#                              f"InvokeAI Type: {field_info['type_config']}. "
-#                              f"Original Label: '{field_info['label']}'") # Include original label for clarity
-#             ))
-#             descriptions.append(
-#                 f"- **{field_label}** (`{element_id}`): For node `{field_info['node_id']}` field `{field_name_in_node}`. Type: `{field_info['type_config']}`."
-#             )
-
-#         schema_description = (
-#             "This schema defines the expected structure of input for updating "
-#             "InvokeAI workflow parameters. Provide a dictionary where keys are "
-#             "the `element_id`s from the workflow's 'form' section, and values "
-#             "are the desired new values for those fields.\n\n"
-#             "**Available Exposed Fields (from workflow's UI form, in order):**\n"
-#             f"{'    ' + os.linesep.join(descriptions)}"
-#         )
-#         return create_model(
-#             "WorkflowInputSchema",
-#             __doc__=schema_description,
-#             **fields
-#         )
-
-
-#     def apply_inputs(self, validated_inputs_model: BaseModel) -> Dict[str, Any]:
-#         """
-#         Applies validated user inputs to a deep copy of the base workflow payload.
-
-#         Args:
-#             validated_inputs_model: An instance of the Pydantic schema generated by get_input_schema,
-#                                     containing the validated user inputs.
-
-#         Returns:
-#             A new dictionary representing the modified enqueue_batch JSON payload.
-#         """
-#         modified_workflow_payload = copy.deepcopy(self._workflow_payload)
-
-#         # Get references to the two sections we need to update
-#         graph_nodes = modified_workflow_payload.get("batch", {}).get("graph", {}).get("nodes", {})
-#         # Note: workflow_nodes_list is actually a dict in the current payload structure
-#         workflow_nodes_map = modified_workflow_payload.get("batch", {}).get("workflow", {}).get("nodes", {})
-
-
-#         # Critical validation: Ensure both graph and workflow nodes exist.
-#         if not graph_nodes:
-#             raise ValueError(
-#                 "Workflow payload does not contain a valid 'batch.graph.nodes' section. "
-#                 "Cannot apply inputs to a malformed workflow graph."
-#             )
-#         if not workflow_nodes_map:
-#             warning("Warning: 'batch.workflow.nodes' section is missing or empty. Updates will only be applied to 'batch.graph.nodes'.")
-        
-#         # Only take fields that were actually set by the user (not None defaults)
-#         # The keys here are the element_ids from the form
-#         user_inputs = validated_inputs_model.model_dump(exclude_unset=True)
-
-#         # Iterate through the ordered exposed fields to apply updates
-#         # This ensures correct mapping even with duplicate field names,
-#         # as we are processing based on the 'form's defined order.
-#         for field_info in self._ordered_exposed_fields:
-#             element_id = field_info['element_id']
-
-#             # Skip if this field was not provided in the user's input
-#             if element_id not in user_inputs:
-#                 continue 
-
-#             node_id = field_info['node_id']
-#             field_name_in_node = field_info['field_name']
-#             expected_type_config = field_info['type_config']
-            
-#             value = user_inputs[element_id] # Value already validated by Pydantic schema
-
-#             # --- Apply specific transformations for InvokeAI payload format ---
-#             value_for_payload = value
-#             if expected_type_config == "ImageField":
-#                 # For ImageField, user provides a string (image_name), but payload needs a dict
-#                 if isinstance(value, str): # Pydantic ensures it's str, just a safety check
-#                     value_for_payload = {"image_name": value}
-            
-#             # --- Apply update to batch.graph.nodes ---
-#             target_graph_node = graph_nodes.get(node_id)
-#             if target_graph_node:
-#                 # Prioritize direct assignment, then common nested paths based on observed payloads
-#                 if field_name_in_node in target_graph_node:
-#                     target_graph_node[field_name_in_node] = value_for_payload
-#                 elif "inputs" in target_graph_node and field_name_in_node in target_graph_node["inputs"]:
-#                     target_graph_node["inputs"][field_name_in_node] = value_for_payload
-#                 elif "data" in target_graph_node and field_name_in_node in target_graph_node["data"]:
-#                     target_graph_node["data"][field_name_in_node] = value_for_payload
-#                 elif "data" in target_graph_node and "inputs" in target_graph_node["data"] and field_name_in_node in target_graph_node["data"]["inputs"]:
-#                     target_graph_node["data"]["inputs"][field_name_in_node] = value_for_payload
-#                 else:
-#                     # This is the warning branch you observed. If the field isn't in common paths,
-#                     # we attempt to add it directly at the top level of the node.
-#                     warning(f"Field '{field_name_in_node}' not found in common paths within graph node '{node_id}' in batch.graph.nodes. Attempting direct assignment. This might indicate an implicit field or a non-standard structure. Verify generated payload.")
-#                     target_graph_node[field_name_in_node] = value_for_payload
-#             else:
-#                 warning(f"Node '{node_id}' not found in batch.graph.nodes. Cannot apply update for '{field_name_in_node}'. This is unexpected if the workflow definition is valid.")
-
-
-#             # --- Apply update to batch.workflow.nodes (for consistency/reference) ---
-#             target_workflow_node = workflow_nodes_map.get(node_id)
-#             if target_workflow_node:
-#                 # Workflow nodes store values under data.inputs.<field_name>.value
-#                 node_data_inputs = target_workflow_node.get("data", {}).get("inputs")
-#                 if isinstance(node_data_inputs, dict) and field_name_in_node in node_data_inputs:
-#                     field_definition = node_data_inputs[field_name_in_node]
-#                     if isinstance(field_definition, dict):
-#                         field_definition["value"] = value_for_payload
-#                     else:
-#                         warning(f"Workflow node '{node_id}' has malformed input definition for field '{field_name_in_node}'. Skipping update in workflow.nodes. This is unexpected.")
-#                 else:
-#                     warning(f"Field '{field_name_in_node}' not found in inputs of workflow node '{node_id}' in batch.workflow.nodes. Skipping update.")
-#             # Else: Node not found in workflow_nodes_map, warning already given earlier if map was empty.
-
-#         return modified_workflow_payload
-
-# # --- End of WorkflowProcessor Class ---
-
-
 class WorkflowProcessor:
     """
     The WorkflowProcessor is designed to bridge the gap between a raw InvokeAI
@@ -348,13 +70,12 @@ class WorkflowProcessor:
         # --- DIAGNOSTIC PRINT ---
         # This will show the exact order of fields that the processor has extracted
         # from the workflow's 'form' section, including their user-facing labels.
-        print("\n--- Detected Order of Exposed Fields (Internal View) ---")
-        for i, field in enumerate(self._ordered_exposed_fields):
-            field_label_part = f" (Label: '{field['field_label']}')" if field['field_label'] else ""
-            print(f"[{i}]: field_name='{field['field_name_in_node']}', node_id='{field['node_id']}', type='{field['settings_type']}'{field_label_part}")
-        print("-------------------------------------------------------\n")
+        # print("\n--- Detected Order of Exposed Fields (Internal View) ---")
+        # for i, field in enumerate(self._ordered_exposed_fields):
+        #     field_label_part = f" (Label: '{field['field_label']}')" if field['field_label'] else ""
+        #     print(f"[{i}]: field_name='{field['field_name_in_node']}', node_id='{field['node_id']}', type='{field['settings_type']}'{field_label_part}")
+        # print("-------------------------------------------------------\n")
         # --- END DIAGNOSTIC PRINT ---
-
 
         # _type_map: A mapping from InvokeAI's internal 'settings.type' strings
         # (e.g., "integer-field-config") to corresponding Python native types
@@ -364,10 +85,47 @@ class WorkflowProcessor:
             "integer-field-config": int,
             "float-field-config": float,
             "string-field-config": str,
-            # Extend this map as more InvokeAI field types are encountered.
+            "boolean-field-config": bool,
             # "ImageField" is a custom internal type for image data, mapped to string.
             "ImageField": str, 
+            # Extend this map as more InvokeAI field types are encountered.
         }
+
+        # NEW: _field_lookup_map for flexible input resolution
+        # This map will store normalized user input keys (from field_name or field_label)
+        # and point to a list of (index_in_ordered_exposed_fields, field_info_dict) tuples.
+        # This allows us to handle duplicate field names/labels and resolve them
+        # based on the order they appear in the user's input.
+        self._field_lookup_map: Dict[str, List[Dict[str, Any]]] = self._build_field_lookup_map()
+
+
+    def _normalize_name(self, name: str) -> str:
+        """Normalizes a name for case-insensitive and space-to-underscore matching."""
+        return name.lower().replace(" ", "_")
+
+
+    def _build_field_lookup_map(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Builds a lookup map to resolve user-provided field keys (normalized field_name or field_label)
+        to the full field information, handling duplicates by storing a list of matches in order.
+        """
+        lookup_map: Dict[str, List[Dict[str, Any]]] = {}
+        for idx, field_info in enumerate(self._ordered_exposed_fields):
+            # Store original field_name_in_node
+            field_name_in_node = field_info["field_name_in_node"]
+            if field_name_in_node not in lookup_map:
+                lookup_map[field_name_in_node] = []
+            lookup_map[field_name_in_node].append({**field_info, "original_order_index": idx})
+
+            # Store normalized field_label, if present
+            field_label = field_info["field_label"]
+            if field_label:
+                normalized_label = self._normalize_name(field_label)
+                if normalized_label not in lookup_map:
+                    lookup_map[normalized_label] = []
+                lookup_map[normalized_label].append({**field_info, "original_order_index": idx})
+        return lookup_map
+
 
     def _build_ordered_exposed_fields_list(self) -> List[Dict[str, Any]]:
         """
@@ -471,11 +229,22 @@ class WorkflowProcessor:
                     # Special handling for known field names that might lack 'settings.type'
                     if field_name_in_node == "image":
                         settings_type = "ImageField" # Assign a custom internal type name for images
+                    # Added explicit boolean type inference based on common field names.
+                    elif field_name_in_node in ["true", "false", "add_noise", "expand_to_fit", "flip_horizontal", "flip_vertical", "disable", "normalize_channels", "use_gaussian_mutation", "expand_t5_embeddings", "scale_delta_output", "touch_timestamp"]:
+                        settings_type = "boolean-field-config"
                     else:
-                        raise ValueError(
-                            f"Malformed 'node-field' element with ID '{element_id}'. "
-                            f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'."
-                        )
+                        # Fallback for component type if 'settings.type' is missing
+                        component_type = field_data.get("settings", {}).get("component")
+                        if component_type == 'number-input':
+                            settings_type = "float-field-config" # Default to float for generic number inputs
+                        elif component_type == 'string-input' or field_name_in_node in ['prompt', 'text', 'notes', 'description', 'label', 'custom_label']:
+                            settings_type = "string-field-config"
+                        else:
+                            raise ValueError(
+                                f"Malformed 'node-field' element with ID '{element_id}'. "
+                                f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'. "
+                                f"Component type: {component_type}. Please check workflow definition."
+                            )
 
                 # Get the field's label from our pre-built map
                 field_label = None
@@ -521,10 +290,12 @@ class WorkflowProcessor:
         # Build a comprehensive description for the 'updates' field
         schema_description_lines = [
             "A list of updates, where each item is a dictionary containing a single key-value pair.",
-            "The key is the simplified field name (e.g., 'value', 'prompt'), and the value is the new setting.",
-            "The order of updates is crucial for fields with duplicate names (e.g., two 'value' fields) "
+            "The key is the field identifier, which can be the `field_name_in_node` (e.g., 'value', 'prompt') "
+            "or the `field_label` (e.g., 'Num Steps', 'Main Prompt').",
+            "When using `field_label`, it is case-insensitive, and spaces can be replaced with underscores.",
+            "The order of updates is crucial for fields with duplicate names/labels, "
             "as it determines which instance is targeted, matching their order in the workflow's form definition.",
-            "\nAvailable fields in this workflow (Name: InvokeAI Type [Field Label if present]):"
+            "\nAvailable fields in this workflow (Field Name in Node: InvokeAI Type [Field Label if present]):"
         ]
         for field_info in self._ordered_exposed_fields:
             field_name = field_info["field_name_in_node"]
@@ -598,10 +369,10 @@ class WorkflowProcessor:
         workflow_nodes_map: Dict[str, Dict[str, Any]] = {node["id"]: node for node in workflow_nodes_list if isinstance(node, dict) and "id" in node}
 
         # field_cursors: A dictionary to keep track of which occurrence of a
-        # given 'simplified_field_name' (e.g., "value") we are currently
-        # processing from the user's input list. This enables disambiguation
-        # for duplicate field names.
-        # Format: {simplified_field_name: current_index_of_occurrence (0-based)}
+        # given 'canonical_field_key' (the key used in _field_lookup_map)
+        # we are currently processing from the user's input list. This enables disambiguation
+        # for duplicate field names/labels.
+        # Format: {canonical_field_key: current_index_of_occurrence (0-based)}
         field_cursors: Dict[str, int] = {}
 
         # Iterate through each simplified update item provided by the user.
@@ -611,41 +382,51 @@ class WorkflowProcessor:
                 raise ValueError(
                     f"Input update item at index {update_index} is malformed. "
                     f"Expected a dictionary with a single key-value pair "
-                    f"(e.g., {{'field_name': value}}), but got: {update_item_dict}"
+                    f"(e.g., {{'field_name_or_label': value}}), but got: {update_item_dict}"
                 )
 
-            # Extract the single key (simplified field name) and its value.
-            simplified_field_name = next(iter(update_item_dict))
-            value = update_item_dict[simplified_field_name]
+            # Extract the single key (user-provided identifier) and its value.
+            user_input_key = next(iter(update_item_dict))
+            value = update_item_dict[user_input_key]
 
-            # Increment the cursor for this specific field name.
-            # This tells us which instance of 'simplified_field_name' we are targeting.
-            field_cursors[simplified_field_name] = field_cursors.get(simplified_field_name, -1) + 1
-            current_cursor = field_cursors[simplified_field_name]
+            # Resolve the user_input_key to its canonical field information.
+            # First, try direct match (for field_name_in_node).
+            potential_targets = self._field_lookup_map.get(user_input_key)
 
-            # Locate the target field's metadata in our pre-built ordered list
-            # (which comes from the 'form' section).
-            # We search for the Nth occurrence of this simplified_field_name.
-            target_field_info: Optional[Dict[str, Any]] = None
-            found_count = 0
-            for info in self._ordered_exposed_fields:
-                if info["field_name_in_node"] == simplified_field_name:
-                    if found_count == current_cursor:
-                        target_field_info = info
-                        break # Found the correct instance
-                    found_count += 1
-            
-            # Critical validation: If no matching exposed field is found, it indicates
-            # either a mismatch in the user's input order (too many updates for a
-            # given field name) or an invalid field name not exposed in the workflow.
-            if not target_field_info:
+            # If no direct match, try normalized label match.
+            if not potential_targets:
+                normalized_user_input_key = self._normalize_name(user_input_key)
+                potential_targets = self._field_lookup_map.get(normalized_user_input_key)
+
+            if not potential_targets:
                 raise ValueError(
-                    f"Input error: Could not find the {current_cursor + 1}th occurrence of "
-                    f"exposed field '{simplified_field_name}' in the workflow definition. "
-                    f"Please check the field name and its relative order in the input list, "
-                    f"or if it is an exposed field at all."
+                    f"Input error: Field identifier '{user_input_key}' at update index {update_index} "
+                    f"is not recognized as an exposed field name or label in the workflow. "
+                    f"Please check the identifier and ensure it is valid for this workflow."
                 )
 
+            # Determine the current cursor for this resolved field (based on the original key provided by user).
+            # This logic needs to be careful to track occurrences based on the *resolved* field,
+            # but still iterate through the user's *input* list to maintain correct relative order.
+            # We'll use the original user_input_key for the cursor tracking, but the resolved
+            # `target_field_info` for the actual update.
+
+            # Determine which occurrence of this 'user_input_key' this is.
+            field_cursors[user_input_key] = field_cursors.get(user_input_key, -1) + 1
+            current_cursor = field_cursors[user_input_key]
+
+            # Find the *specific* target field info for this occurrence.
+            # Iterate through the potential_targets (which are already ordered by original appearance)
+            # and pick the one corresponding to current_cursor.
+            if current_cursor >= len(potential_targets):
+                raise ValueError(
+                    f"Input error: Too many updates provided for field identifier '{user_input_key}'. "
+                    f"There are only {len(potential_targets)} instances of this field in the workflow. "
+                    f"Update at index {update_index} cannot be resolved."
+                )
+            
+            target_field_info = potential_targets[current_cursor]
+            
             node_id = target_field_info["node_id"]
             field_name_in_node = target_field_info["field_name_in_node"] # The actual key for the node
             expected_type_str = target_field_info["settings_type"]
@@ -655,7 +436,7 @@ class WorkflowProcessor:
             if expected_python_type is None:
                 raise TypeError(
                     f"Unsupported InvokeAI field config type '{expected_type_str}' for "
-                    f"field '{simplified_field_name}' (Node ID: {node_id}). "
+                    f"field '{field_name_in_node}' (Node ID: {node_id}). "
                     f"Please extend '_type_map' in WorkflowProcessor to handle this type."
                 )
 
@@ -670,7 +451,8 @@ class WorkflowProcessor:
             except (ValueError, TypeError) as e:
                 # Raise TypeError if the value cannot be converted, indicating invalid data.
                 raise TypeError(
-                    f"Type mismatch for field '{simplified_field_name}' (Node ID: {node_id}). "
+                    f"Type mismatch for field '{user_input_key}' (Node ID: {node_id}, "
+                    f"Internal Field Name: '{field_name_in_node}'). "
                     f"Value '{value}' (type: {type(value).__name__}) could not be converted "
                     f"to expected type '{expected_python_type.__name__}'. Original error: {e}"
                 )
@@ -689,7 +471,7 @@ class WorkflowProcessor:
                 # and the actual graph nodes, which is a critical internal workflow error.
                 raise ValueError(
                     f"Internal workflow error: Node ID '{node_id}' for exposed field "
-                    f"'{simplified_field_name}' not found in 'batch.graph.nodes'. "
+                    f"'{field_name_in_node}' not found in 'batch.graph.nodes'. "
                     f"The workflow definition may be corrupted or inconsistent."
                 )
 
@@ -724,7 +506,7 @@ class WorkflowProcessor:
             else:
                 # This should ideally not happen if _build_ordered_exposed_fields_list is accurate,
                 # as it builds from workflow.nodes. However, defensive check is good.
-                print(f"Warning: Workflow node ID '{node_id}' for exposed field '{simplified_field_name}' not found in 'batch.workflow.nodes'. Skipping update in workflow.nodes.")
+                print(f"Warning: Workflow node ID '{node_id}' for exposed field '{field_name_in_node}' not found in 'batch.workflow.nodes'. Skipping update in workflow.nodes.")
 
         return modified_payload
 
@@ -758,9 +540,11 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
     )
     updates_json_string: str = InputField(
         description="A JSON string containing updates for the workflow's exposed fields. "
-                    "Keys are element_ids (from workflow form), values are new data. "
-                    "Example: {'node-field-abc': 100, 'node-field-xyz': 'my_image.png'}. "
-                    "Use empty string '{}' for no updates.",
+                    "Keys can be field_name_in_node (e.g., 'value', 'prompt') or field_label "
+                    "(e.g., 'Num Steps', 'Main Prompt'). Field labels are case-insensitive and "
+                    "support spaces as underscores (e.g., 'num_steps', 'Num_Steps', 'Num Steps'). "
+                    "Example: [{'value': 100}, {'Num Steps': 25}]. "
+                    "Use empty string '[]' or '{}' for no updates (will be parsed as empty list).",
         ui_component=UIComponent.Textarea,
         ui_order=2,
     )
@@ -788,12 +572,19 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
     def validate_updates_json_string_format(cls, v):
         """
         Validator to check if the updates_json_string is a valid JSON string.
-        Allows empty string to be valid (parsed as an empty dictionary).
+        Allows empty string to be valid (parsed as an empty dictionary or list).
         """
-        if not v.strip(): # Treat empty string as valid JSON (empty dict)
-            return "{}"
+        if not v.strip(): # Treat empty string as valid JSON (empty list or dict)
+            return "[]" # It expects a list of dicts for updates
         try:
-            json.loads(v)
+            parsed_json = json.loads(v)
+            if not isinstance(parsed_json, list):
+                raise ValueError("Expected a JSON array (list) for 'updates_json_string'.")
+            for item in parsed_json:
+                if not isinstance(item, dict):
+                    raise ValueError("Each item in 'updates_json_string' list must be a JSON object (dictionary).")
+                if len(item) != 1:
+                    raise ValueError("Each item in 'updates_json_string' list must contain exactly one key-value pair.")
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON format for updates_json_string: {e}")
         return v
@@ -825,15 +616,15 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
 
             # 2. Parse and Validate the updates_json_string
             # The JSON format validation is handled by the @validator, so json.loads won't fail here for format.
-            user_updates_dict = json.loads(self.updates_json_string) 
+            # It also ensures it's a list of single-key dicts.
+            user_updates_list = json.loads(self.updates_json_string) 
 
             # Dynamically create schema for validation
             WorkflowInputSchema = processor.get_input_schema()
 
-            # Validate the incoming user updates against the dynamic schema
-            # Pydantic will handle coercion and raise ValidationError if types are incompatible.
-            # This is where general input validation failures will occur.
-            validated_inputs = WorkflowInputSchema(**user_updates_dict)
+            # The WorkflowInputSchema expects a 'updates' key which is a list.
+            # So, we need to pass a dictionary with 'updates' as the key.
+            validated_inputs = WorkflowInputSchema(updates=user_updates_list)
             info("User inputs validated successfully against dynamic schema.")
 
 
@@ -843,7 +634,7 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
             final_payload = processor.apply_inputs(validated_inputs)
             info("Inputs applied to workflow payload successfully.")
 
-            print(f"\r\n\r\n----------------------\r\n\r\n{final_payload}\r\n\r\n------------------------\r\n\r\n")
+            print(f"\r\n\r\n----------------------\r\n\r\n{json.dumps(final_payload, indent=2)}\r\n\r\n------------------------\r\n\r\n")
 
             # 4. Prepare and send the POST request using http.client
             conn = http.client.HTTPConnection(API_HOST, API_PORT, timeout=30) # 30-second timeout
@@ -939,4 +730,3 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
             # Catch any other unexpected exceptions and wrap them as a RuntimeError
             error(f"An unhandled critical error occurred in Enqueue Workflow Batch node: {e}", exc_info=True)
             raise RuntimeError(f"An unexpected critical error occurred: {e}")
-
