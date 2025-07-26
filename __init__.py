@@ -1,1 +1,2 @@
+from .builder import FieldListBuilderInvocation
 from .processor import EnqueueWorkflowBatchInvocation

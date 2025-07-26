@@ -1,14 +1,14 @@
 import copy
-import gzip # Import gzip for decompression
-import http.client # Using built-in http.client for HTTP requests
+import gzip
+import http.client
 import json
 import os
-import zlib # Import zlib for deflate decompression
+import zlib
 
 from pathlib import Path
-from typing import Dict, Any, Type, Optional, List, Union
+from typing import Dict, Any, Type, Optional, List, Union, Set # Import Set
 
-from pydantic import BaseModel, Field, create_model, ValidationError, validator # Import validator
+from pydantic import BaseModel, Field, create_model, ValidationError, validator
 
 from invokeai.invocation_api import (
     BaseInvocation,
@@ -16,7 +16,7 @@ from invokeai.invocation_api import (
     InputField,
     InvocationContext,
     OutputField,
-    StringOutput, # For potential error messages or confirmation
+    StringOutput,
     invocation,
     invocation_output,
     UIComponent,
@@ -91,12 +91,12 @@ class WorkflowProcessor:
             # Extend this map as more InvokeAI field types are encountered.
         }
 
-        # NEW: _field_lookup_map for flexible input resolution
+        # _field_lookup_map for flexible input resolution
         # This map will store normalized user input keys (from field_name or field_label)
-        # and point to a list of (index_in_ordered_exposed_fields, field_info_dict) tuples.
+        # and point to a list of *indices* into self._ordered_exposed_fields.
         # This allows us to handle duplicate field names/labels and resolve them
-        # based on the order they appear in the user's input.
-        self._field_lookup_map: Dict[str, List[Dict[str, Any]]] = self._build_field_lookup_map()
+        # based on the order they appear in the workflow's form definition.
+        self._field_lookup_map: Dict[str, List[int]] = self._build_field_lookup_map()
 
 
     def _normalize_name(self, name: str) -> str:
@@ -104,18 +104,18 @@ class WorkflowProcessor:
         return name.lower().replace(" ", "_")
 
 
-    def _build_field_lookup_map(self) -> Dict[str, List[Dict[str, Any]]]:
+    def _build_field_lookup_map(self) -> Dict[str, List[int]]: # Changed return type
         """
         Builds a lookup map to resolve user-provided field keys (normalized field_name or field_label)
-        to the full field information, handling duplicates by storing a list of matches in order.
+        to a list of indices into self._ordered_exposed_fields, preserving order.
         """
-        lookup_map: Dict[str, List[Dict[str, Any]]] = {}
+        lookup_map: Dict[str, List[int]] = {}
         for idx, field_info in enumerate(self._ordered_exposed_fields):
             # Store original field_name_in_node
             field_name_in_node = field_info["field_name_in_node"]
             if field_name_in_node not in lookup_map:
                 lookup_map[field_name_in_node] = []
-            lookup_map[field_name_in_node].append({**field_info, "original_order_index": idx})
+            lookup_map[field_name_in_node].append(idx) # Store index directly
 
             # Store normalized field_label, if present
             field_label = field_info["field_label"]
@@ -123,7 +123,7 @@ class WorkflowProcessor:
                 normalized_label = self._normalize_name(field_label)
                 if normalized_label not in lookup_map:
                     lookup_map[normalized_label] = []
-                lookup_map[normalized_label].append({**field_info, "original_order_index": idx})
+                lookup_map[normalized_label].append(idx) # Store index directly
         return lookup_map
 
 
@@ -368,12 +368,9 @@ class WorkflowProcessor:
         # NEW: Build a quick lookup map for workflow_nodes_list for efficient access
         workflow_nodes_map: Dict[str, Dict[str, Any]] = {node["id"]: node for node in workflow_nodes_list if isinstance(node, dict) and "id" in node}
 
-        # field_cursors: A dictionary to keep track of which occurrence of a
-        # given 'canonical_field_key' (the key used in _field_lookup_map)
-        # we are currently processing from the user's input list. This enables disambiguation
-        # for duplicate field names/labels.
-        # Format: {canonical_field_key: current_index_of_occurrence (0-based)}
-        field_cursors: Dict[str, int] = {}
+        # New: Set to keep track of the original_order_index of fields that have been updated.
+        # This allows handling of duplicate field names/labels across different nodes.
+        used_field_indices: Set[int] = set()
 
         # Iterate through each simplified update item provided by the user.
         for update_index, update_item_dict in enumerate(inputs.updates):
@@ -389,43 +386,41 @@ class WorkflowProcessor:
             user_input_key = next(iter(update_item_dict))
             value = update_item_dict[user_input_key]
 
-            # Resolve the user_input_key to its canonical field information.
-            # First, try direct match (for field_name_in_node).
-            potential_targets = self._field_lookup_map.get(user_input_key)
+            # Resolve the user_input_key to its canonical field information (list of original_order_indices).
+            potential_target_indices: Optional[List[int]] = self._field_lookup_map.get(user_input_key)
 
             # If no direct match, try normalized label match.
-            if not potential_targets:
+            if not potential_target_indices:
                 normalized_user_input_key = self._normalize_name(user_input_key)
-                potential_targets = self._field_lookup_map.get(normalized_user_input_key)
+                potential_target_indices = self._field_lookup_map.get(normalized_user_input_key)
 
-            if not potential_targets:
+            if not potential_target_indices:
                 raise ValueError(
                     f"Input error: Field identifier '{user_input_key}' at update index {update_index} "
                     f"is not recognized as an exposed field name or label in the workflow. "
                     f"Please check the identifier and ensure it is valid for this workflow."
                 )
-
-            # Determine the current cursor for this resolved field (based on the original key provided by user).
-            # This logic needs to be careful to track occurrences based on the *resolved* field,
-            # but still iterate through the user's *input* list to maintain correct relative order.
-            # We'll use the original user_input_key for the cursor tracking, but the resolved
-            # `target_field_info` for the actual update.
-
-            # Determine which occurrence of this 'user_input_key' this is.
-            field_cursors[user_input_key] = field_cursors.get(user_input_key, -1) + 1
-            current_cursor = field_cursors[user_input_key]
-
-            # Find the *specific* target field info for this occurrence.
-            # Iterate through the potential_targets (which are already ordered by original appearance)
-            # and pick the one corresponding to current_cursor.
-            if current_cursor >= len(potential_targets):
+            
+            # Find the first available (not yet used) target index from the potential_target_indices
+            found_target_original_index: Optional[int] = None
+            for idx in potential_target_indices:
+                if idx not in used_field_indices:
+                    found_target_original_index = idx
+                    break
+            
+            if found_target_original_index is None:
                 raise ValueError(
                     f"Input error: Too many updates provided for field identifier '{user_input_key}'. "
-                    f"There are only {len(potential_targets)} instances of this field in the workflow. "
-                    f"Update at index {update_index} cannot be resolved."
+                    f"All {len(potential_target_indices)} instances of this field "
+                    f"(by name or label) have already been assigned a value. "
+                    f"Update at index {update_index} cannot be resolved to an unused field."
                 )
             
-            target_field_info = potential_targets[current_cursor]
+            # Mark this field as used so it won't be targeted again by subsequent updates
+            used_field_indices.add(found_target_original_index)
+
+            # Retrieve the full field info using the found index from the _ordered_exposed_fields
+            target_field_info = self._ordered_exposed_fields[found_target_original_index]
             
             node_id = target_field_info["node_id"]
             field_name_in_node = target_field_info["field_name_in_node"] # The actual key for the node
@@ -528,17 +523,17 @@ class EnqueueWorkflowBatchOutput(BaseInvocationOutput):
 )
 class EnqueueWorkflowBatchInvocation(BaseInvocation):
     """
-    Enqueues a workflow batch by applying user updates to a pre-defined template
+    Enqueues a workflow batch by applying user updates to a pre-defined payload
     and sending it directly to the InvokeAI backend API using http.client.
     """
 
     # --- Node Inputs ---
-    workflow_template_filename: str = InputField(
-        description="The filename of the enqueue_batch JSON template (e.g., 'my_workflow_template.json') "
-                    "located in the node's 'workflow_templates' subdirectory.",
+    workflow_payload_filename: str = InputField(
+        description="The filename of the enqueue_batch JSON payload (e.g., 'my_workflow_payload.json') "
+                    "located in the node's 'workflow_payloads' subdirectory.",
         ui_order=1,
     )
-    updates_json_string: str = InputField(
+    field_list_updates: str = InputField(
         description="A JSON string containing updates for the workflow's exposed fields. "
                     "Keys can be field_name_in_node (e.g., 'value', 'prompt') or field_label "
                     "(e.g., 'Num Steps', 'Main Prompt'). Field labels are case-insensitive and "
@@ -550,28 +545,28 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
     )
 
     # --- Input Validators ---
-    @validator("workflow_template_filename")
-    def validate_template_file_exists(cls, v):
+    @validator("workflow_payload_filename")
+    def validate_payload_file_exists(cls, v):
         """
-        Validator to check if the specified workflow template file exists
-        in the 'workflow_templates' subdirectory.
+        Validator to check if the specified workflow payload file exists
+        in the 'workflow_payloads' subdirectory.
         """
         # __file__ refers to the current module. cls.__module__ can be used
         # to find the path in a more general way if the class is part of a package.
         # For a direct file, Path(__file__).parent is reliable.
         node_dir = Path(__file__).parent
-        templates_dir = node_dir / "workflow_templates"
-        template_file_path = templates_dir / v
+        payloads_dir = node_dir / "workflow_payloads"
+        payload_file_path = payloads_dir / v
 
-        if not template_file_path.is_file():
+        if not payload_file_path.is_file():
             # Raise ValueError for Pydantic validation failures
-            raise ValueError(f"Workflow template file '{v}' not found at '{template_file_path}'.")
+            raise ValueError(f"Workflow payload file '{v}' not found at '{payload_file_path}'.")
         return v
 
-    @validator("updates_json_string")
-    def validate_updates_json_string_format(cls, v):
+    @validator("field_list_updates")
+    def validate_field_list_updates_format(cls, v):
         """
-        Validator to check if the updates_json_string is a valid JSON string.
+        Validator to check if the field_list_updates is a valid JSON string.
         Allows empty string to be valid (parsed as an empty dictionary or list).
         """
         if not v.strip(): # Treat empty string as valid JSON (empty list or dict)
@@ -579,14 +574,14 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
         try:
             parsed_json = json.loads(v)
             if not isinstance(parsed_json, list):
-                raise ValueError("Expected a JSON array (list) for 'updates_json_string'.")
+                raise ValueError("Expected a JSON array (list) for 'field_list_updates'.")
             for item in parsed_json:
                 if not isinstance(item, dict):
-                    raise ValueError("Each item in 'updates_json_string' list must be a JSON object (dictionary).")
+                    raise ValueError("Each item in 'field_list_updates' list must be a JSON object (dictionary).")
                 if len(item) != 1:
-                    raise ValueError("Each item in 'updates_json_string' list must contain exactly one key-value pair.")
+                    raise ValueError("Each item in 'field_list_updates' list must contain exactly one key-value pair.")
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON format for updates_json_string: {e}")
+            raise ValueError(f"Invalid JSON format for field_list_updates: {e}")
         return v
 
 
@@ -595,10 +590,10 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
         # The file existence check is now handled by the @validator.
         # We can directly construct the path here, knowing it exists.
         node_dir = Path(__file__).parent
-        templates_dir = node_dir / "workflow_templates"
-        template_file_path = templates_dir / self.workflow_template_filename
+        payloads_dir = node_dir / "workflow_payloads"
+        payload_file_path = payloads_dir / self.workflow_payload_filename
 
-        info(f"Attempting to load workflow template from: {template_file_path}")
+        info(f"Attempting to load workflow payload from: {payload_file_path}")
 
         # Define the InvokeAI API host and path
         # As confirmed by user, host is localhost:9090 for the API
@@ -607,17 +602,17 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
         API_PATH = "/api/v1/queue/default/enqueue_batch" # This part seems standard
 
         try:
-            # 1. Initialize WorkflowProcessor with the selected template
+            # 1. Initialize WorkflowProcessor with the selected payload
             # This can raise FileNotFoundError or ValueError (from JSONDecodeError in __init__)
-            with open(template_file_path, 'r') as inf:
-                template_json = json.load(inf)
+            with open(payload_file_path, 'r') as inf:
+                payload_json = json.load(inf)
             
-            processor = WorkflowProcessor(template_json)
+            processor = WorkflowProcessor(payload_json)
 
-            # 2. Parse and Validate the updates_json_string
+            # 2. Parse and Validate the field_list_updates
             # The JSON format validation is handled by the @validator, so json.loads won't fail here for format.
             # It also ensures it's a list of single-key dicts.
-            user_updates_list = json.loads(self.updates_json_string) 
+            user_updates_list = json.loads(self.field_list_updates) 
 
             # Dynamically create schema for validation
             WorkflowInputSchema = processor.get_input_schema()
@@ -706,10 +701,10 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
         # These exceptions indicate invalid input or critical processing failures
         # that should stop the workflow.
         except (FileNotFoundError, ValueError) as e:
-            # FileNotFoundError: template file not found (though largely caught by validator)
-            # ValueError: Invalid JSON in template, or a processing error in WorkflowProcessor
+            # FileNotFoundError: payload file not found (though largely caught by validator)
+            # ValueError: Invalid JSON in payload, or a processing error in WorkflowProcessor
             error(f"Workflow processing error: {e}", exc_info=True)
-            raise ValueError(f"Workflow input or template error: {e}") # Re-raise as ValueError
+            raise ValueError(f"Workflow input or payload error: {e}") # Re-raise as ValueError
 
         except ValidationError as e:
             # This catches validation errors from the dynamically generated WorkflowInputSchema
