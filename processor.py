@@ -21,7 +21,17 @@ from invokeai.invocation_api import (
     invocation_output,
     UIComponent,
 )
+from invokeai.app.services.config.config_default import get_config
 from invokeai.backend.util.logging import info, warning, error
+
+# Load the InvokeAI configuration to get the backend port:
+app_config = get_config()
+
+# Define the InvokeAI API host and path
+# As confirmed by user, host is localhost:9090 for the API
+API_HOST = "localhost"
+API_PORT = app_config.port
+API_PATH = "/api/v1/queue/default/enqueue_batch" # This part seems standard
 
 
 class WorkflowProcessor:
@@ -195,7 +205,7 @@ class WorkflowProcessor:
         node_input_field_labels: Dict[str, Dict[str, str]] = {}
         workflow_nodes_list = self._workflow_payload.get("batch", {}).get("workflow", {}).get("nodes", [])
         if not workflow_nodes_list:
-            print("Warning: 'batch.workflow.nodes' section is missing or empty. Field labels will not be available.")
+            warning("Warning: 'batch.workflow.nodes' section is missing or empty. Field labels will not be available.")
         
         for node in workflow_nodes_list: # Iterate through the list of workflow nodes
             if isinstance(node, dict) and "id" in node and "data" in node and isinstance(node["data"], dict):
@@ -211,7 +221,7 @@ class WorkflowProcessor:
         for element_id in ordered_element_ids:
             form_element = form_elements.get(element_id)
             if not isinstance(form_element, dict):
-                print(f"Warning: Skipping malformed form element with ID '{element_id}' from children list.")
+                warning(f"Warning: Skipping malformed form element with ID '{element_id}' from children list.")
                 continue
 
             # We are interested in elements of type "node-field" as these represent adjustable parameters.
@@ -363,7 +373,7 @@ class WorkflowProcessor:
             )
         if not workflow_nodes_list:
             # While not strictly critical for 'graph' update, it is if user wants to sync both.
-            print("Warning: 'batch.workflow.nodes' section is missing or empty. Updates will only be applied to 'batch.graph.nodes'.")
+            warning("Warning: 'batch.workflow.nodes' section is missing or empty. Updates will only be applied to 'batch.graph.nodes'.")
         
         # NEW: Build a quick lookup map for workflow_nodes_list for efficient access
         workflow_nodes_map: Dict[str, Dict[str, Any]] = {node["id"]: node for node in workflow_nodes_list if isinstance(node, dict) and "id" in node}
@@ -480,7 +490,7 @@ class WorkflowProcessor:
             elif "data" in target_graph_node and "inputs" in target_graph_node["data"] and field_name_in_node in target_graph_node["data"]["inputs"]:
                 target_graph_node["data"]["inputs"][field_name_in_node] = value_for_payload
             else:
-                print(f"Warning: Field '{field_name_in_node}' not found in common paths within graph node '{node_id}'. Attempting direct assignment. "
+                warning(f"Warning: Field '{field_name_in_node}' not found in common paths within graph node '{node_id}'. Attempting direct assignment. "
                       f"Review workflow structure if this message persists for a valid workflow.")
                 target_graph_node[field_name_in_node] = value_for_payload
 
@@ -495,13 +505,13 @@ class WorkflowProcessor:
                     if isinstance(field_definition, dict):
                         field_definition["value"] = value_for_payload
                     else:
-                        print(f"Warning: Workflow node '{node_id}' has malformed input definition for field '{field_name_in_node}'. Skipping update in workflow.nodes.")
+                        warning(f"Warning: Workflow node '{node_id}' has malformed input definition for field '{field_name_in_node}'. Skipping update in workflow.nodes.")
                 else:
-                    print(f"Warning: Field '{field_name_in_node}' not found in inputs of workflow node '{node_id}'. Skipping update in workflow.nodes.")
+                    warning(f"Warning: Field '{field_name_in_node}' not found in inputs of workflow node '{node_id}'. Skipping update in workflow.nodes.")
             else:
                 # This should ideally not happen if _build_ordered_exposed_fields_list is accurate,
                 # as it builds from workflow.nodes. However, defensive check is good.
-                print(f"Warning: Workflow node ID '{node_id}' for exposed field '{field_name_in_node}' not found in 'batch.workflow.nodes'. Skipping update in workflow.nodes.")
+                warning(f"Warning: Workflow node ID '{node_id}' for exposed field '{field_name_in_node}' not found in 'batch.workflow.nodes'. Skipping update in workflow.nodes.")
 
         return modified_payload
 
@@ -595,12 +605,6 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
 
         info(f"Attempting to load workflow payload from: {payload_file_path}")
 
-        # Define the InvokeAI API host and path
-        # As confirmed by user, host is localhost:9090 for the API
-        API_HOST = "localhost"
-        API_PORT = 9090
-        API_PATH = "/api/v1/queue/default/enqueue_batch" # This part seems standard
-
         try:
             # 1. Initialize WorkflowProcessor with the selected payload
             # This can raise FileNotFoundError or ValueError (from JSONDecodeError in __init__)
@@ -629,7 +633,7 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
             final_payload = processor.apply_inputs(validated_inputs)
             info("Inputs applied to workflow payload successfully.")
 
-            print(f"\r\n\r\n----------------------\r\n\r\n{json.dumps(final_payload, indent=2)}\r\n\r\n------------------------\r\n\r\n")
+            # print(f"\r\n\r\n----------------------\r\n\r\n{json.dumps(final_payload, indent=2)}\r\n\r\n------------------------\r\n\r\n")
 
             # 4. Prepare and send the POST request using http.client
             conn = http.client.HTTPConnection(API_HOST, API_PORT, timeout=30) # 30-second timeout
@@ -646,12 +650,12 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
                 "Connection": "keep-alive",
                 "Content-Type": "application/json", # Crucial for JSON body
                 "Host": f"{API_HOST}:{API_PORT}", # As confirmed by user, include port here
-                "Origin": "http://localhost:9090", # Origin of the request (can be UI or custom node)
-                "Referer": "http://localhost:9090/", # Referer of the request (can be UI or custom node)
+                "Origin": f"http://localhost:{API_PORT}", # Origin of the request (can be UI or custom node)
+                "Referer": f"http://localhost:{API_PORT}/", # Referer of the request (can be UI or custom node)
                 "Sec-Fetch-Dest": "empty",
                 "Sec-Fetch-Mode": "cors",
                 "Sec-Fetch-Site": "same-origin",
-                "User-Agent": "InvokeAI-CustomNode/1.0 (http.client)", # Custom user agent for clarity
+                "User-Agent": "InvokeAI-WorkflowProcessorNode/1.0 (http.client)", # Custom user agent for clarity
                 # Browser-specific headers like sec-ch-ua are generally not needed for API calls from backend
             }
 
@@ -678,7 +682,7 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
                 status_code = response.status
                 
                 info(f"API Response - Status Code: {status_code}")
-                info(f"API Response - Body: {response_body_decoded}")
+                # info(f"API Response - Body: {response_body_decoded}")
 
                 if 200 <= status_code < 300: # Success range
                     try:

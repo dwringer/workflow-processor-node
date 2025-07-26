@@ -2,6 +2,7 @@ import json
 from invokeai.invocation_api import (
     BaseInvocation,
     FloatOutput,
+    ImageField,
     InputField,
     InvocationContext,
     IntegerOutput,
@@ -71,7 +72,51 @@ class FieldListBuilderStringInvocation(FieldListBuilderInvocation):
     def invoke(self, context: InvocationContext) -> StringOutput:
         return_value : StringOutput = super().invoke(context)
         return return_value
-    
+
+
+@invocation(
+    "field_list_builder_image",
+    title="Field List Builder - Image",
+    tags=["json", "field", "workflow", "list", "utility", "image"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderImageInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    value: ImageField = InputField(
+        description="The value for the new entry.",
+        ui_order=1,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        current_list = []
+
+        if self.existing_json and self.existing_json.strip():
+            try:
+                parsed_json = json.loads(self.existing_json)
+                if isinstance(parsed_json, list):
+                    current_list = parsed_json
+                else:
+                    # Handle cases where the input JSON isn't a list
+                    warning("Existing JSON input was not a list. Starting a new list.")
+            except json.JSONDecodeError:
+                error(f"Failed to decode existing_json: {self.existing_json}. Starting a new list.")
+                # If decoding fails, we start with an empty list as a fallback
+
+        new_entry = {self.field_name: self.value.image_name}
+        current_list.append(new_entry)
+
+        output_json_string = json.dumps(current_list, indent=2) # indent for readability
+
+        return_value = StringOutput(value=output_json_string)
+        return return_value
+
+
+
+
 @invocation(
     "field_list_builder_integer",
     title="Field List Builder - Integer",
