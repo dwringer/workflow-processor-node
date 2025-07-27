@@ -17,7 +17,7 @@ intro: |
   ]
   \`\`\`
 
-  These structures can be input directly as strings, or created with a set of Field List Builder nodes. Every Field List Builder node has three inputs: `existing_json`, `field_name`, and `value`. These nodes are chained together by connecting the `value` output of one to the `existing_json` input of another, by which they can be sequenced in the order they appear in the workflow's linear UI panel.
+  These structures can be input directly as strings, or created with a set of Field List Builder nodes. Every Field List Builder node has one `value` output and three inputs: `existing_json`, `field_name`, and `value`. These nodes are chained together by connecting the `value` output of one to the `existing_json` input of another, by which they can be sequenced in the order they appear in the workflow's linear UI panel.
 
   Note that field names given can be either the base name as defined in the node itself, or the user-applied label (if it has been renamed). Either will work, with spaces or underscores, and is case insensitive. Duplicate names are no problem as long as they are properly ordered in the input updates JSON.
 

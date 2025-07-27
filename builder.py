@@ -43,10 +43,14 @@ class FieldListBuilderInvocation(BaseInvocation):
                 error(f"Failed to decode existing_json: {self.existing_json}. Starting a new list.")
                 # If decoding fails, we start with an empty list as a fallback
 
-        new_entry = {self.field_name: self.value}
+        if hasattr(self, 'value'):
+            input_field_value = self.value
+        else:
+            input_field_value = self.collection
+        new_entry = {self.field_name: input_field_value}
         current_list.append(new_entry)
 
-        output_json_string = json.dumps(current_list, indent=2) # indent for readability
+        output_json_string = json.dumps(current_list)  # , indent=2) # indent for readability
 
         return StringOutput(value=output_json_string)
 
@@ -66,6 +70,28 @@ class FieldListBuilderStringInvocation(FieldListBuilderInvocation):
     value: str = InputField(
         description="The value for the new entry.",
         ui_component=UIComponent.Textarea,
+        ui_order=1,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_string_collection",
+    title="Field List Builder - String Collection",
+    tags=["json", "field", "workflow", "list", "utility", "string", "collection"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderStringCollectionInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    collection: list[str] = InputField(
+        description="The collection for the new entry.",
         ui_order=1,
     )
 
@@ -109,12 +135,51 @@ class FieldListBuilderImageInvocation(FieldListBuilderInvocation):
         new_entry = {self.field_name: self.value.image_name}
         current_list.append(new_entry)
 
-        output_json_string = json.dumps(current_list, indent=2) # indent for readability
+        output_json_string = json.dumps(current_list)  # , indent=2) # indent for readability
 
         return_value = StringOutput(value=output_json_string)
         return return_value
 
 
+@invocation(
+    "field_list_builder_image_collection",
+    title="Field List Builder - Image Collection",
+    tags=["json", "field", "workflow", "list", "utility", "image", "collection"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderImageCollectionInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    collection: list[ImageField] = InputField(
+        description="The image collection for the new entry.",
+        ui_order=1,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        current_list = []
+
+        if self.existing_json and self.existing_json.strip():
+            try:
+                parsed_json = json.loads(self.existing_json)
+                if isinstance(parsed_json, list):
+                    current_list = parsed_json
+                else:
+                    # Handle cases where the input JSON isn't a list
+                    warning("Existing JSON input was not a list. Starting a new list.")
+            except json.JSONDecodeError:
+                error(f"Failed to decode existing_json: {self.existing_json}. Starting a new list.")
+                # If decoding fails, we start with an empty list as a fallback
+
+        new_entry = {self.field_name: [img_field.image_name for img_field in self.collection]}
+        current_list.append(new_entry)
+
+        output_json_string = json.dumps(current_list)  # , indent=2) # indent for readability
+
+        return_value = StringOutput(value=output_json_string)
+        return return_value
 
 
 @invocation(
@@ -131,6 +196,28 @@ class FieldListBuilderIntegerInvocation(FieldListBuilderInvocation):
 
     value: int = InputField(
         description="The value for the new entry.",
+        ui_order=1,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+    
+@invocation(
+    "field_list_builder_integer_collection",
+    title="Field List Builder - Integer Collection",
+    tags=["json", "field", "workflow", "list", "utility", "integer", "collection"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderIntegerCollectionInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    collection: list[int] = InputField(
+        description="The collection for the new entry.",
         ui_order=1,
     )
 
@@ -162,6 +249,28 @@ class FieldListBuilderFloatInvocation(FieldListBuilderInvocation):
 
 
 @invocation(
+    "field_list_builder_float_collection",
+    title="Field List Builder - Float Collection",
+    tags=["json", "field", "workflow", "list", "utility", "float", "collection"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderFloatCollectionInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    collection: list[float] = InputField(
+        description="The collection for the new entry.",
+        ui_order=1,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
     "field_list_builder_boolean",
     title="Field List Builder - Boolean",
     tags=["json", "field", "workflow", "list", "utility", "boolean"],
@@ -181,6 +290,35 @@ class FieldListBuilderBooleanInvocation(FieldListBuilderInvocation):
     def invoke(self, context: InvocationContext) -> StringOutput:
         return_value : StringOutput = super().invoke(context)
         return return_value
+
+
+# DISABLED
+#  This is currently deactivated because
+#  boolean collections are not properly
+#  supported in the linear UI as of 5.9
+# --------------------------------------
+# @invocation(
+#     "field_list_builder_boolean_collection",
+#     title="Field List Builder - Boolean Collection",
+#     tags=["json", "field", "workflow", "list", "utility", "boolean", "collection"],
+#     category="utilities",
+#     version="1.0.0"
+# )
+# class FieldListBuilderBooleanCollectionInvocation(FieldListBuilderInvocation):
+#     """
+#     Builds or appends to a JSON list containing single key-value pair dictionaries.
+#     """
+
+#     collection: list[bool] = InputField(
+#         default=[],
+#         description="The collection for the new entry.",
+#         ui_order=1,
+#     )
+
+#     def invoke(self, context: InvocationContext) -> StringOutput:
+#         return_value : StringOutput = super().invoke(context)
+#         return return_value
+# --------------------------------------
 
 
 @invocation(

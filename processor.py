@@ -77,15 +77,15 @@ class WorkflowProcessor:
         # It correctly includes the user-facing label of the field itself.
         self._ordered_exposed_fields: List[Dict[str, Any]] = self._build_ordered_exposed_fields_list()
 
-        # --- DIAGNOSTIC PRINT ---
-        # This will show the exact order of fields that the processor has extracted
-        # from the workflow's 'form' section, including their user-facing labels.
+        # # --- DIAGNOSTIC PRINT ---
+        # # This will show the exact order of fields that the processor has extracted
+        # # from the workflow's 'form' section, including their user-facing labels.
         # print("\n--- Detected Order of Exposed Fields (Internal View) ---")
         # for i, field in enumerate(self._ordered_exposed_fields):
         #     field_label_part = f" (Label: '{field['field_label']}')" if field['field_label'] else ""
         #     print(f"[{i}]: field_name='{field['field_name_in_node']}', node_id='{field['node_id']}', type='{field['settings_type']}'{field_label_part}")
         # print("-------------------------------------------------------\n")
-        # --- END DIAGNOSTIC PRINT ---
+        # # --- END DIAGNOSTIC PRINT ---
 
         # _type_map: A mapping from InvokeAI's internal 'settings.type' strings
         # (e.g., "integer-field-config") to corresponding Python native types
@@ -96,8 +96,9 @@ class WorkflowProcessor:
             "float-field-config": float,
             "string-field-config": str,
             "boolean-field-config": bool,
-            # "ImageField" is a custom internal type for image data, mapped to string.
-            "ImageField": str, 
+            "image-field-config": str,
+            "image-collection-field-config": list,
+            "collection-field-config": list, 
             # Extend this map as more InvokeAI field types are encountered.
         }
 
@@ -217,6 +218,9 @@ class WorkflowProcessor:
                         if isinstance(field_def, dict) and "label" in field_def:
                             node_input_field_labels[node_id][field_name] = field_def["label"]
         
+        # Get a reference to the graph nodes for type inference
+        graph_nodes = self._workflow_payload.get("batch", {}).get("graph", {}).get("nodes", {})
+
         ordered_list = []
         for element_id in ordered_element_ids:
             form_element = form_elements.get(element_id)
@@ -236,25 +240,45 @@ class WorkflowProcessor:
                 # If 'settings' or 'type' is missing, attempt to infer.
                 settings_type = field_data.get("settings", {}).get("type")
                 if not settings_type:
-                    # Special handling for known field names that might lack 'settings.type'
-                    if field_name_in_node == "image":
-                        settings_type = "ImageField" # Assign a custom internal type name for images
-                    # Added explicit boolean type inference based on common field names.
-                    elif field_name_in_node in ["true", "false", "add_noise", "expand_to_fit", "flip_horizontal", "flip_vertical", "disable", "normalize_channels", "use_gaussian_mutation", "expand_t5_embeddings", "scale_delta_output", "touch_timestamp"]:
-                        settings_type = "boolean-field-config"
-                    else:
-                        # Fallback for component type if 'settings.type' is missing
-                        component_type = field_data.get("settings", {}).get("component")
-                        if component_type == 'number-input':
-                            settings_type = "float-field-config" # Default to float for generic number inputs
-                        elif component_type == 'string-input' or field_name_in_node in ['prompt', 'text', 'notes', 'description', 'label', 'custom_label']:
-                            settings_type = "string-field-config"
-                        else:
-                            raise ValueError(
-                                f"Malformed 'node-field' element with ID '{element_id}'. "
-                                f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'. "
-                                f"Component type: {component_type}. Please check workflow definition."
-                            )
+                    # Attempt to infer type by looking up the value in the graph node
+                    if node_id and field_name_in_node and node_id in graph_nodes:
+                        graph_node = graph_nodes[node_id]
+                        if field_name_in_node in graph_node:
+                            inferred_value = graph_node[field_name_in_node]
+                            if isinstance(inferred_value, bool):
+                                settings_type = "boolean-field-config"
+                            elif isinstance(inferred_value, int):
+                                settings_type = "integer-field-config"
+                            elif isinstance(inferred_value, float):
+                                settings_type = "float-field-config"
+                            elif isinstance(inferred_value, str):
+                                settings_type = "string-field-config"
+                            elif isinstance(inferred_value, list):
+                                if (
+                                    (0 < len(inferred_value)) and
+                                    isinstance(inferred_value[0], dict) and
+                                    ('image_name' in inferred_value[0])
+                                ):
+                                    settings_type = "image-collection-field-config"
+                                else:
+                                    settings_type = "collection-field-config"
+                            elif isinstance(inferred_value, dict):
+                                if 'image_name' in inferred_value:
+                                    settings_type = "image-field-config"
+                                else:
+                                    raise ValueError(f"unrecognized dict element type ({field_name_in_node}): {inferred_value}")
+                            elif inferred_value is None:
+                                # If the value is None, we might default to string or raise an error.
+                                # For now, let's default to string if no other type can be determined.
+                                settings_type = "string-field-config"
+                            # else: type remains None if not explicitly handled                                
+
+                    if not settings_type: # If inference from graph failed or was not applicable
+                        raise ValueError(
+                            f"Malformed 'node-field' element with ID '{element_id}'. "
+                            f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'. "
+                            f"Instance type: {type(inferred_value).__name__}. Please check workflow definition."
+                        )
 
                 # Get the field's label from our pre-built map
                 field_label = None
@@ -372,9 +396,9 @@ class WorkflowProcessor:
                 "Cannot apply inputs to a malformed workflow graph."
             )
         if not workflow_nodes_list:
-            # While not strictly critical for 'graph' update, it is if user wants to sync both.
+            # While not strictly critical for 'graph' update, it is if user wants to sync both...
             warning("Warning: 'batch.workflow.nodes' section is missing or empty. Updates will only be applied to 'batch.graph.nodes'.")
-        
+
         # NEW: Build a quick lookup map for workflow_nodes_list for efficient access
         workflow_nodes_map: Dict[str, Dict[str, Any]] = {node["id"]: node for node in workflow_nodes_list if isinstance(node, dict) and "id" in node}
 
@@ -410,14 +434,14 @@ class WorkflowProcessor:
                     f"is not recognized as an exposed field name or label in the workflow. "
                     f"Please check the identifier and ensure it is valid for this workflow."
                 )
-            
+
             # Find the first available (not yet used) target index from the potential_target_indices
             found_target_original_index: Optional[int] = None
             for idx in potential_target_indices:
                 if idx not in used_field_indices:
                     found_target_original_index = idx
                     break
-            
+
             if found_target_original_index is None:
                 raise ValueError(
                     f"Input error: Too many updates provided for field identifier '{user_input_key}'. "
@@ -425,13 +449,12 @@ class WorkflowProcessor:
                     f"(by name or label) have already been assigned a value. "
                     f"Update at index {update_index} cannot be resolved to an unused field."
                 )
-            
+
             # Mark this field as used so it won't be targeted again by subsequent updates
             used_field_indices.add(found_target_original_index)
 
             # Retrieve the full field info using the found index from the _ordered_exposed_fields
             target_field_info = self._ordered_exposed_fields[found_target_original_index]
-            
             node_id = target_field_info["node_id"]
             field_name_in_node = target_field_info["field_name_in_node"] # The actual key for the node
             expected_type_str = target_field_info["settings_type"]
@@ -458,60 +481,40 @@ class WorkflowProcessor:
                 raise TypeError(
                     f"Type mismatch for field '{user_input_key}' (Node ID: {node_id}, "
                     f"Internal Field Name: '{field_name_in_node}'). "
-                    f"Value '{value}' (type: {type(value).__name__}) could not be converted "
-                    f"to expected type '{expected_python_type.__name__}'. Original error: {e}"
+                    f"Value '{value}' (type: {type(value).__name__}) could not be "
+                    f"coerced to expected type '{expected_python_type.__name__}'. Error: {e}"
                 )
 
             # Special handling for ImageField type (might we need to add bool or other types here?)
-            if expected_type_str == "ImageField":
+            if expected_type_str == "image-field-config":
                 # Assuming 'value' here is the image name string provided by the user
                 value_for_payload = {"image_name": value}
+            elif expected_type_str == "image-collection-field-config":
+                info(f'handling image collection from: {value}')
+                value_for_payload = [{"image_name": v} for v in value]
             else:
                 value_for_payload = value # Use the coerced value directly
             
-            # --- Apply update to batch.graph.nodes ---
-            target_graph_node = graph_nodes.get(node_id)
-            if not target_graph_node:
-                # This indicates a severe inconsistency between exposed_fields (from 'form')
-                # and the actual graph nodes, which is a critical internal workflow error.
-                raise ValueError(
-                    f"Internal workflow error: Node ID '{node_id}' for exposed field "
-                    f"'{field_name_in_node}' not found in 'batch.graph.nodes'. "
-                    f"The workflow definition may be corrupted or inconsistent."
-                )
-
-            # Logic to find and update the field in the graph node
-            if field_name_in_node in target_graph_node:
-                target_graph_node[field_name_in_node] = value_for_payload
-            elif "inputs" in target_graph_node and field_name_in_node in target_graph_node["inputs"]:
-                target_graph_node["inputs"][field_name_in_node] = value_for_payload
-            elif "data" in target_graph_node and field_name_in_node in target_graph_node["data"]:
-                target_graph_node["data"][field_name_in_node] = value_for_payload
-            elif "data" in target_graph_node and "inputs" in target_graph_node["data"] and field_name_in_node in target_graph_node["data"]["inputs"]:
-                target_graph_node["data"]["inputs"][field_name_in_node] = value_for_payload
-            else:
-                warning(f"Warning: Field '{field_name_in_node}' not found in common paths within graph node '{node_id}'. Attempting direct assignment. "
-                      f"Review workflow structure if this message persists for a valid workflow.")
-                target_graph_node[field_name_in_node] = value_for_payload
-
-            # --- Apply update to batch.workflow.nodes ---
-            # Locate the node in the workflow_nodes_list using the map for efficiency
-            target_workflow_node = workflow_nodes_map.get(node_id)
-            if target_workflow_node:
-                # The value needs to be set in data.inputs.<field_name>.value
-                node_data_inputs = target_workflow_node.get("data", {}).get("inputs")
-                if isinstance(node_data_inputs, dict) and field_name_in_node in node_data_inputs:
-                    field_definition = node_data_inputs[field_name_in_node]
-                    if isinstance(field_definition, dict):
-                        field_definition["value"] = value_for_payload
-                    else:
-                        warning(f"Warning: Workflow node '{node_id}' has malformed input definition for field '{field_name_in_node}'. Skipping update in workflow.nodes.")
+            # Apply the update to the graph node
+            if node_id in graph_nodes:
+                if field_name_in_node in graph_nodes[node_id]:
+                    graph_nodes[node_id][field_name_in_node] = value_for_payload
                 else:
-                    warning(f"Warning: Field '{field_name_in_node}' not found in inputs of workflow node '{node_id}'. Skipping update in workflow.nodes.")
+                    warning(f"Warning: Field '{field_name_in_node}' not found in graph node '{node_id}'. Skipping update for graph.")
             else:
-                # This should ideally not happen if _build_ordered_exposed_fields_list is accurate,
-                # as it builds from workflow.nodes. However, defensive check is good.
-                warning(f"Warning: Workflow node ID '{node_id}' for exposed field '{field_name_in_node}' not found in 'batch.workflow.nodes'. Skipping update in workflow.nodes.")
+                warning(f"Warning: Graph node '{node_id}' not found. Skipping update for graph.")
+
+            # Apply the update to the workflow node's inputs.value if it exists
+            # This is crucial for syncing the workflow definition with the graph changes.
+            workflow_node = workflow_nodes_map.get(node_id)
+            if workflow_node and "data" in workflow_node and "inputs" in workflow_node["data"]:
+                workflow_inputs = workflow_node["data"]["inputs"]
+                if field_name_in_node in workflow_inputs and "value" in workflow_inputs[field_name_in_node]:
+                    workflow_inputs[field_name_in_node]["value"] = value_for_payload
+                else:
+                    warning(f"Warning: Field '{field_name_in_node}' or its 'value' not found in workflow node '{node_id}' inputs. Skipping update for workflow definition.")
+            else:
+                warning(f"Warning: Workflow node '{node_id}' or its 'data'/'inputs' not found. Skipping update for workflow definition.")
 
         return modified_payload
 

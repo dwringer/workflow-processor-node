@@ -21,7 +21,7 @@ The Enqueue Workflow Batch node operates by applying user updates to a pre-defin
 ]
 ```
 
-These structures can be input directly as strings, or created with a set of Field List Builder nodes. Every Field List Builder node has three inputs: `existing_json`, `field_name`, and `value`. These nodes are chained together by connecting the `value` output of one to the `existing_json` input of another, by which they can be sequenced in the order they appear in the workflow's linear UI panel.
+These structures can be input directly as strings, or created with a set of Field List Builder nodes. Every Field List Builder node has one `value` output and three inputs: `existing_json`, `field_name`, and `value`. These nodes are chained together by connecting the `value` output of one to the `existing_json` input of another, by which they can be sequenced in the order they appear in the workflow's linear UI panel.
 
 Note that field names given can be either the base name as defined in the node itself, or the user-applied label (if it has been renamed). Either will work, with spaces or underscores, and is case insensitive. Duplicate names are no problem as long as they are properly ordered in the input updates JSON.
 
@@ -36,10 +36,14 @@ repository's code (or just clone the repository yourself) into your
 - [Enqueue Workflow Batch](#enqueue-workflow-batch) - Enqueues a workflow batch by applying user updates to a pre-defined payload
 - [Field List Builder - Boolean](#field-list-builder---boolean) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Float](#field-list-builder---float) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - Float Collection](#field-list-builder---float-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Image](#field-list-builder---image) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - Image Collection](#field-list-builder---image-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Integer](#field-list-builder---integer) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - Integer Collection](#field-list-builder---integer-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Join](#field-list-builder---join) - Concatenates two JSON lists.
 - [Field List Builder - String](#field-list-builder---string) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - String Collection](#field-list-builder---string-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 
 <details>
 <summary>
@@ -174,6 +178,44 @@ No output information available.
 </details>
 
 ---
+### Field List Builder - Float Collection
+**ID:** `field_list_builder_float_collection`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, float, collection
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `collection` | `list[float]` | The collection for the new entry. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
 ### Field List Builder - Image
 **ID:** `field_list_builder_image`
 
@@ -212,6 +254,44 @@ No output information available.
 </details>
 
 ---
+### Field List Builder - Image Collection
+**ID:** `field_list_builder_image_collection`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, image, collection
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `collection` | `list[ImageField]` | The image collection for the new entry. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
 ### Field List Builder - Integer
 **ID:** `field_list_builder_integer`
 
@@ -233,6 +313,44 @@ No output information available.
 | Name | Type | Description | Default |
 | ---- | ---- | ----------- | ------- |
 | `value` | `int` | The value for the new entry. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - Integer Collection
+**ID:** `field_list_builder_integer_collection`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, integer, collection
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `collection` | `list[int]` | The collection for the new entry. | None |
 
 
 </details>
@@ -310,6 +428,44 @@ No output information available.
 | Name | Type | Description | Default |
 | ---- | ---- | ----------- | ------- |
 | `value` | `str` | The value for the new entry. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - String Collection
+**ID:** `field_list_builder_string_collection`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, string, collection
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `collection` | `list[str]` | The collection for the new entry. | None |
 
 
 </details>
