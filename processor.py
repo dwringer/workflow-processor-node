@@ -98,7 +98,10 @@ class WorkflowProcessor:
             "boolean-field-config": bool,
             "image-field-config": str,
             "image-collection-field-config": list,
-            "collection-field-config": list, 
+            "collection-field-config": list,
+            "board-field-config": str,
+            "model-field-config": dict,
+            "object-field-config": dict,
             # Extend this map as more InvokeAI field types are encountered.
         }
 
@@ -265,20 +268,28 @@ class WorkflowProcessor:
                             elif isinstance(inferred_value, dict):
                                 if 'image_name' in inferred_value:
                                     settings_type = "image-field-config"
+                                elif 'board_id' in inferred_value:
+                                    settings_type = "board-field-config"
+                                elif 'hash' in inferred_value:
+                                    settings_type = "model-field-config"
                                 else:
                                     raise ValueError(f"unrecognized dict element type ({field_name_in_node}): {inferred_value}")
                             elif inferred_value is None:
                                 # If the value is None, we might default to string or raise an error.
                                 # For now, let's default to string if no other type can be determined.
                                 settings_type = "string-field-config"
-                            # else: type remains None if not explicitly handled                                
+                            # else: type remains None if not explicitly handled
 
                     if not settings_type: # If inference from graph failed or was not applicable
-                        raise ValueError(
-                            f"Malformed 'node-field' element with ID '{element_id}'. "
-                            f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'. "
-                            f"Instance type: {type(inferred_value).__name__}. Please check workflow definition."
-                        )
+                        settings_type = "object-field-config"
+                        warning(f"Malformed 'node-field' element with ID '{element_id}'. "
+                                f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'.")
+                                
+                        # raise ValueError(
+                        #     f"Malformed 'node-field' element with ID '{element_id}'. "
+                        #     f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'. "
+                        #     f"Instance type: {type(inferred_value).__name__}. Please check workflow definition."
+                        # )
 
                 # Get the field's label from our pre-built map
                 field_label = None
@@ -492,6 +503,8 @@ class WorkflowProcessor:
             elif expected_type_str == "image-collection-field-config":
                 info(f'handling image collection from: {value}')
                 value_for_payload = [{"image_name": v} for v in value]
+            elif expected_type_str == "board-field-config":
+                value_for_payload = {"board_id": value}
             else:
                 value_for_payload = value # Use the coerced value directly
             

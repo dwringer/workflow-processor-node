@@ -1,13 +1,17 @@
 import json
 from invokeai.invocation_api import (
     BaseInvocation,
+    FieldDescriptions,
     FloatOutput,
     ImageField,
+    Input,
     InputField,
     InvocationContext,
     IntegerOutput,
+    ModelIdentifierField,
     StringOutput,
     UIComponent,
+    UIType,
     invocation,
 )
 from invokeai.backend.util.logging import warning, error
@@ -45,6 +49,15 @@ class FieldListBuilderInvocation(BaseInvocation):
 
         if hasattr(self, 'value'):
             input_field_value = self.value
+        elif hasattr(self, 'model'):
+            input_field_value = {
+                'key': self.model.key,
+                'hash': self.model.hash,
+                'name': self.model.name,
+                'base': self.model.base,
+                'type': self.model.type,
+                'submodel_type': self.model.submodel_type if hasattr(self.model, 'submodel_type') else None
+            }
         else:
             input_field_value = self.collection
         new_entry = {self.field_name: input_field_value}
@@ -319,6 +332,193 @@ class FieldListBuilderBooleanInvocation(FieldListBuilderInvocation):
 #         return_value : StringOutput = super().invoke(context)
 #         return return_value
 # --------------------------------------
+
+
+@invocation(
+    "field_list_builder_controlnet",
+    title="Field List Builder - ControlNet",
+    tags=["json", "field", "workflow", "list", "utility", "controlnet"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderControlNetInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.controlnet_model,
+        ui_order=1,
+        ui_type=UIType.ControlNetModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_ip_adapter",
+    title="Field List Builder - IP Adapter",
+    tags=["json", "field", "workflow", "list", "utility", "ip", "adapter"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderIPAdapterInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.ip_adapter,
+        ui_order=1,
+        ui_type=UIType.IPAdapterModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_controllora",
+    title="Field List Builder - ControlLoRA",
+    tags=["json", "field", "workflow", "list", "utility", "controllora"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderControlLoRAInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.control_lora_model,
+        ui_order=1,
+        ui_type=UIType.ControlLoRAModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_lora",
+    title="Field List Builder - LoRA",
+    tags=["json", "field", "workflow", "list", "utility", "lora"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderLoRAInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.lora_model,
+        ui_order=1,
+        ui_type=UIType.LoRAModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_flux_main_model",
+    title="Field List Builder - FLUX Main Model",
+    tags=["json", "field", "workflow", "list", "utility", "flux", "main", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderFLUXMainModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a main model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.flux_model,
+        ui_order=1,
+        ui_type=UIType.FluxMainModel,
+        input=Input.Direct,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_t5_model",
+    title="Field List Builder - T5 Model",
+    tags=["json", "field", "workflow", "list", "utility", "t5", "encoder"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderT5ModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a T5 encoder model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.t5_encoder,
+        ui_order=1,
+        ui_type=UIType.T5EncoderModel,
+        input=Input.Direct,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_clip_model",
+    title="Field List Builder - CLIP Model",
+    tags=["json", "field", "workflow", "list", "utility", "clip", "encoder"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderCLIPModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP embed model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.clip_embed_model,
+        ui_order=1,
+        ui_type=UIType.CLIPEmbedModel,
+        input=Input.Direct,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_flux_vae",
+    title="Field List Builder - FLUX VAE",
+    tags=["json", "field", "workflow", "list", "utility", "vae", "flux"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderFLUXVAEInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.vae_model,
+        ui_order=1,
+        ui_type=UIType.FluxVAEModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
 
 
 @invocation(

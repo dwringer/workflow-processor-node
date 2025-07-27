@@ -35,15 +35,23 @@ repository's code (or just clone the repository yourself) into your
 ### Nodes
 - [Enqueue Workflow Batch](#enqueue-workflow-batch) - Enqueues a workflow batch by applying user updates to a pre-defined payload
 - [Field List Builder - Boolean](#field-list-builder---boolean) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - CLIP Model](#field-list-builder---clip-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP embed model.
+- [Field List Builder - ControlLoRA](#field-list-builder---controllora) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - ControlNet](#field-list-builder---controlnet) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Float](#field-list-builder---float) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Float Collection](#field-list-builder---float-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - FLUX Main Model](#field-list-builder---flux-main-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a main model.
+- [Field List Builder - FLUX VAE](#field-list-builder---flux-vae) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model.
 - [Field List Builder - Image](#field-list-builder---image) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Image Collection](#field-list-builder---image-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Integer](#field-list-builder---integer) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Integer Collection](#field-list-builder---integer-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - IP Adapter](#field-list-builder---ip-adapter) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Join](#field-list-builder---join) - Concatenates two JSON lists.
+- [Field List Builder - LoRA](#field-list-builder---lora) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - String](#field-list-builder---string) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - String Collection](#field-list-builder---string-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - T5 Model](#field-list-builder---t5-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a T5 encoder model.
 
 <details>
 <summary>
@@ -140,6 +148,120 @@ No output information available.
 </details>
 
 ---
+### Field List Builder - CLIP Model
+**ID:** `field_list_builder_clip_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, clip, encoder
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP embed model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - ControlLoRA
+**ID:** `field_list_builder_controllora`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, controllora
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - ControlNet
+**ID:** `field_list_builder_controlnet`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, controlnet
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
 ### Field List Builder - Float
 **ID:** `field_list_builder_float`
 
@@ -199,6 +321,82 @@ No output information available.
 | Name | Type | Description | Default |
 | ---- | ---- | ----------- | ------- |
 | `collection` | `list[float]` | The collection for the new entry. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - FLUX Main Model
+**ID:** `field_list_builder_flux_main_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, flux, main, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a main model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - FLUX VAE
+**ID:** `field_list_builder_flux_vae`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, vae, flux
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
 
 
 </details>
@@ -368,6 +566,44 @@ No output information available.
 </details>
 
 ---
+### Field List Builder - IP Adapter
+**ID:** `field_list_builder_ip_adapter`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, ip, adapter
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
 ### Field List Builder - Join
 **ID:** `field_list_builder_join`
 
@@ -390,6 +626,44 @@ No output information available.
 | ---- | ---- | ----------- | ------- |
 | `first` | `str` | The first JSON field list for joining. | None |
 | `second` | `str` | The second JSON field list for joining. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - LoRA
+**ID:** `field_list_builder_lora`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, lora
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
 
 
 </details>
@@ -466,6 +740,44 @@ No output information available.
 | Name | Type | Description | Default |
 | ---- | ---- | ----------- | ------- |
 | `collection` | `list[str]` | The collection for the new entry. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - T5 Model
+**ID:** `field_list_builder_t5_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, t5, encoder
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a T5 encoder model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
 
 
 </details>
