@@ -205,7 +205,7 @@ class WorkflowProcessor:
                 f"Container '{root_element_id}' is malformed. Expected 'data.children' as a list of element IDs."
             )
 
-        # NEW: Create a quick lookup for node's input field labels from 'workflow.nodes'
+        # Create a quick lookup for node's input field labels from 'workflow.nodes'
         # This map will store: {node_id: {field_name: field_label}}
         node_input_field_labels: Dict[str, Dict[str, str]] = {}
         workflow_nodes_list = self._workflow_payload.get("batch", {}).get("workflow", {}).get("nodes", [])
@@ -288,6 +288,8 @@ class WorkflowProcessor:
                     if not settings_type: # If inference from graph failed or was not applicable
                         if (field_name_in_node.lower() == "board"):
                             settings_type = "board-field-config"
+                        elif (field_name_in_node.lower() == "refiner_model"):
+                            settings_type = "model-field-config"
                         else:
                             settings_type = "object-field-config"
                             warning(f"Malformed 'node-field' element with ID '{element_id}'. "
@@ -419,10 +421,10 @@ class WorkflowProcessor:
             # While not strictly critical for 'graph' update, it is if user wants to sync both...
             warning("Warning: 'batch.workflow.nodes' section is missing or empty. Updates will only be applied to 'batch.graph.nodes'.")
 
-        # NEW: Build a quick lookup map for workflow_nodes_list for efficient access
+        # Build a quick lookup map for workflow_nodes_list for efficient access
         workflow_nodes_map: Dict[str, Dict[str, Any]] = {node["id"]: node for node in workflow_nodes_list if isinstance(node, dict) and "id" in node}
 
-        # New: Set to keep track of the original_order_index of fields that have been updated.
+        # Set to keep track of the original_order_index of fields that have been updated.
         # This allows handling of duplicate field names/labels across different nodes.
         used_field_indices: Set[int] = set()
 

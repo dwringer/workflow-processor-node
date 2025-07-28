@@ -1,5 +1,6 @@
 import json
 from invokeai.invocation_api import (
+    SCHEDULER_NAME_VALUES,
     BaseInvocation,
     FieldDescriptions,
     FloatOutput,
@@ -539,6 +540,221 @@ class FieldListBuilderFLUXVAEInvocation(FieldListBuilderInvocation):
         description=FieldDescriptions.vae_model,
         ui_order=1,
         ui_type=UIType.FluxVAEModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_sd15_main_model",
+    title="Field List Builder - SD1.5 Main Model",
+    tags=["json", "field", "workflow", "list", "utility", "sd15", "main", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderSD15MainModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for an SD1.5 main model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.main_model,
+        ui_order=1,
+        ui_type=UIType.MainModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_sdxl_main_model",
+    title="Field List Builder - SDXL Main Model",
+    tags=["json", "field", "workflow", "list", "utility", "sdxl", "main", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderSDXLMainModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for an SDXL main model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.sdxl_main_model,
+        ui_order=1,
+        ui_type=UIType.SDXLMainModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_sd3_main_model",
+    title="Field List Builder - SD3 Main Model",
+    tags=["json", "field", "workflow", "list", "utility", "sd3", "main", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderSD3MainModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for an SD3 main model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.sd3_model,
+        ui_order=1,
+        ui_type=UIType.SD3MainModel,
+        input=Input.Direct,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_clip_l_model",
+    title="Field List Builder - CLIP-L Model",
+    tags=["json", "field", "workflow", "list", "utility", "clip-l", "model", "encoder"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderCLIPLModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP-L model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.clip_embed_model,
+        ui_order=1,
+        ui_type=UIType.CLIPLEmbedModel,
+        input=Input.Direct,
+        title="CLIP L Encoder",
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_clip_g_model",
+    title="Field List Builder - CLIP-G Model",
+    tags=["json", "field", "workflow", "list", "utility", "clip-g", "model", "encoder"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderCLIPGModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP-G model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.clip_g_model,
+        ui_order=1,
+        ui_type=UIType.CLIPGEmbedModel,
+        input=Input.Direct,
+        title="CLIP G Encoder",
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_t2i_adapter_model",
+    title="Field List Builder - T2I-Adapter Model",
+    tags=["json", "field", "workflow", "list", "utility", "t2i", "adapter", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderT2IAdapterModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a T2I-Adapter model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description="The T2I-Adapter model.",
+        title="T2I-Adapter Model",
+        ui_order=1,
+        ui_type=UIType.T2IAdapterModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_vae_model",
+    title="Field List Builder - VAE Model",
+    tags=["json", "field", "workflow", "list", "utility", "vae", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderVAEModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model (SD1.5, SDXL, SD3 compatible).
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.vae_model,
+        title="VAE",
+        ui_order=1,
+        ui_type=UIType.VAEModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_scheduler",
+    title="Field List Builder - Scheduler",
+    tags=["json", "field", "workflow", "list", "utility", "scheduler"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderSchedulerInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a scheduler.
+    """
+
+    value: SCHEDULER_NAME_VALUES = InputField(
+        default="euler",
+        description=FieldDescriptions.scheduler,
+        ui_order=1,
+        ui_type=UIType.Scheduler,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
+    "field_list_builder_sdxl_refiner",
+    title="Field List Builder - SDXL Refiner Model",
+    tags=["json", "field", "workflow", "list", "utility", "sdxl", "refiner", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderSDXLRefinerModelInvocation(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for an SDXL Refiner model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description=FieldDescriptions.sdxl_refiner_model,
+        ui_order=1,
+        ui_type=UIType.SDXLRefinerModel,
     )
 
     def invoke(self, context: InvocationContext) -> StringOutput:

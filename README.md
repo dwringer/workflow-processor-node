@@ -25,6 +25,10 @@ These structures can be input directly as strings, or created with a set of Fiel
 
 Note that field names given can be either the base name as defined in the node itself, or the user-applied label (if it has been renamed). Either will work, with spaces or underscores, and is case insensitive. Duplicate names are no problem as long as they are properly ordered in the input updates JSON.
 
+Use strings to populate EnumFields, and just type the value exactly as it appears in the enum.
+
+To create the payload JSON and make it available to be loaded by filename in the Enqueue Workflow Batch node, use your web browser's developer console [<F12> in Chrome] to watch for the appearance of an `enqueue_batch` request when you click the Invoke button in the frontend. When this appears, select it and navigate to view its request payload. Copy this payload in full, and paste it into a file; then, save the file into the `workflow_payloads/` subdirectory of this node's own folder in your invokeai nodes directory (`<invokeai-install-path>/nodes/workflow-processor-node/workflow_payloads/`).
+
 ### Installation:
 
 To install these nodes, simply place the folder containing this
@@ -37,6 +41,8 @@ repository's code (or just clone the repository yourself) into your
 - [Field List Builder - Board](#field-list-builder---board) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Boolean](#field-list-builder---boolean) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - CLIP Model](#field-list-builder---clip-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP embed model.
+- [Field List Builder - CLIP-G Model](#field-list-builder---clip-g-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP-G model.
+- [Field List Builder - CLIP-L Model](#field-list-builder---clip-l-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP-L model.
 - [Field List Builder - ControlLoRA](#field-list-builder---controllora) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - ControlNet](#field-list-builder---controlnet) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Float](#field-list-builder---float) - Builds or appends to a JSON list containing single key-value pair dictionaries.
@@ -50,9 +56,16 @@ repository's code (or just clone the repository yourself) into your
 - [Field List Builder - IP Adapter](#field-list-builder---ip-adapter) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Join](#field-list-builder---join) - Concatenates two JSON lists.
 - [Field List Builder - LoRA](#field-list-builder---lora) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - Scheduler](#field-list-builder---scheduler) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a scheduler.
+- [Field List Builder - SD1.5 Main Model](#field-list-builder---sd15-main-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for an SD1.5 main model.
+- [Field List Builder - SD3 Main Model](#field-list-builder---sd3-main-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for an SD3 main model.
+- [Field List Builder - SDXL Main Model](#field-list-builder---sdxl-main-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for an SDXL main model.
+- [Field List Builder - SDXL Refiner Model](#field-list-builder---sdxl-refiner-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for an SDXL Refiner model.
 - [Field List Builder - String](#field-list-builder---string) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - String Collection](#field-list-builder---string-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
+- [Field List Builder - T2I-Adapter Model](#field-list-builder---t2i-adapter-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a T2I-Adapter model.
 - [Field List Builder - T5 Model](#field-list-builder---t5-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a T5 encoder model.
+- [Field List Builder - VAE Model](#field-list-builder---vae-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model (SD1.5, SDXL, SD3 compatible).
 
 <details>
 <summary>
@@ -183,6 +196,82 @@ No output information available.
 **Version:** 1.0.0
 
 **Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP embed model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - CLIP-G Model
+**ID:** `field_list_builder_clip_g_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, clip-g, model, encoder
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP-G model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - CLIP-L Model
+**ID:** `field_list_builder_clip_l_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, clip-l, model, encoder
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP-L model.
 
 <details>
 <summary>
@@ -706,6 +795,196 @@ No output information available.
 </details>
 
 ---
+### Field List Builder - Scheduler
+**ID:** `field_list_builder_scheduler`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, scheduler
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a scheduler.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `value` | `SCHEDULER_NAME_VALUES` |  | euler |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - SD1.5 Main Model
+**ID:** `field_list_builder_sd15_main_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, sd15, main, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for an SD1.5 main model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - SD3 Main Model
+**ID:** `field_list_builder_sd3_main_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, sd3, main, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for an SD3 main model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - SDXL Main Model
+**ID:** `field_list_builder_sdxl_main_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, sdxl, main, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for an SDXL main model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - SDXL Refiner Model
+**ID:** `field_list_builder_sdxl_refiner`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, sdxl, refiner, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for an SDXL Refiner model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
 ### Field List Builder - String
 **ID:** `field_list_builder_string`
 
@@ -782,6 +1061,44 @@ No output information available.
 </details>
 
 ---
+### Field List Builder - T2I-Adapter Model
+**ID:** `field_list_builder_t2i_adapter_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, t2i, adapter, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a T2I-Adapter model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` | The T2I-Adapter model. | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
 ### Field List Builder - T5 Model
 **ID:** `field_list_builder_t5_model`
 
@@ -792,6 +1109,44 @@ No output information available.
 **Version:** 1.0.0
 
 **Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a T5 encoder model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - VAE Model
+**ID:** `field_list_builder_vae_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, vae, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model (SD1.5, SDXL, SD3 compatible).
 
 <details>
 <summary>
