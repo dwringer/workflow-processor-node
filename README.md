@@ -34,6 +34,7 @@ repository's code (or just clone the repository yourself) into your
 ## Overview
 ### Nodes
 - [Enqueue Workflow Batch](#enqueue-workflow-batch) - Enqueues a workflow batch by applying user updates to a pre-defined payload
+- [Field List Builder - Board](#field-list-builder---board) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Boolean](#field-list-builder---boolean) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - CLIP Model](#field-list-builder---clip-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a CLIP embed model.
 - [Field List Builder - ControlLoRA](#field-list-builder---controllora) - Builds or appends to a JSON list containing single key-value pair dictionaries.
@@ -105,6 +106,30 @@ and sending it directly to the InvokeAI backend API using http.client.
 | ---- | ---- | ----------- |
 | `status` | `str` | Status of the enqueue operation (e.g., 'Success', 'Failed') |
 | `message` | `str` | A descriptive message about the enqueue operation. |
+
+
+</details>
+
+---
+### Field List Builder - Board
+**ID:** `field_list_builder_board`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, board
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries.
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
 
 
 </details>

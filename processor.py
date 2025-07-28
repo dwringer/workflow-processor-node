@@ -3,6 +3,7 @@ import gzip
 import http.client
 import json
 import os
+import uuid
 import zlib
 
 from pathlib import Path
@@ -99,7 +100,7 @@ class WorkflowProcessor:
             "image-field-config": str,
             "image-collection-field-config": list,
             "collection-field-config": list,
-            "board-field-config": str,
+            "board-field-config": dict,
             "model-field-config": dict,
             "object-field-config": dict,
             # Extend this map as more InvokeAI field types are encountered.
@@ -224,6 +225,10 @@ class WorkflowProcessor:
         # Get a reference to the graph nodes for type inference
         graph_nodes = self._workflow_payload.get("batch", {}).get("graph", {}).get("nodes", {})
 
+        # Set a new graph id (UUIDv4):
+        graph_obj = self._workflow_payload.get("batch", {}).get("graph", {})
+        graph_obj['id'] = str(uuid.uuid4())
+
         ordered_list = []
         for element_id in ordered_element_ids:
             form_element = form_elements.get(element_id)
@@ -281,9 +286,12 @@ class WorkflowProcessor:
                             # else: type remains None if not explicitly handled
 
                     if not settings_type: # If inference from graph failed or was not applicable
-                        settings_type = "object-field-config"
-                        warning(f"Malformed 'node-field' element with ID '{element_id}'. "
-                                f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'.")
+                        if (field_name_in_node.lower() == "board"):
+                            settings_type = "board-field-config"
+                        else:
+                            settings_type = "object-field-config"
+                            warning(f"Malformed 'node-field' element with ID '{element_id}'. "
+                                    f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'.")
                                 
                         # raise ValueError(
                         #     f"Malformed 'node-field' element with ID '{element_id}'. "
@@ -398,6 +406,7 @@ class WorkflowProcessor:
         
         # Get references to the two sections we need to update
         graph_nodes = modified_payload.get("batch", {}).get("graph", {}).get("nodes", {})
+        
         workflow_nodes_list = modified_payload.get("batch", {}).get("workflow", {}).get("nodes", [])
 
         # Critical validation: Ensure both graph and workflow nodes exist.
@@ -496,7 +505,7 @@ class WorkflowProcessor:
                     f"coerced to expected type '{expected_python_type.__name__}'. Error: {e}"
                 )
 
-            # Special handling for ImageField type (might we need to add bool or other types here?)
+            # Special handling for some field types (possibly need to extend?)
             if expected_type_str == "image-field-config":
                 # Assuming 'value' here is the image name string provided by the user
                 value_for_payload = {"image_name": value}
@@ -504,7 +513,7 @@ class WorkflowProcessor:
                 info(f'handling image collection from: {value}')
                 value_for_payload = [{"image_name": v} for v in value]
             elif expected_type_str == "board-field-config":
-                value_for_payload = {"board_id": value}
+                value_for_payload = {"board_id": value['board_id']}
             else:
                 value_for_payload = value # Use the coerced value directly
             
@@ -512,6 +521,11 @@ class WorkflowProcessor:
             if node_id in graph_nodes:
                 if field_name_in_node in graph_nodes[node_id]:
                     graph_nodes[node_id][field_name_in_node] = value_for_payload
+                elif field_name_in_node == "board":
+                    # Board wouldn't be present if the payload field was set on "Auto"
+                    # So, we have to add the key manually:
+                    graph_nodes[node_id]['board'] = value_for_payload
+
                 else:
                     warning(f"Warning: Field '{field_name_in_node}' not found in graph node '{node_id}'. Skipping update for graph.")
             else:
@@ -648,6 +662,12 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
             # though this should ideally be caught during workflow creation/testing).
             final_payload = processor.apply_inputs(validated_inputs)
             info("Inputs applied to workflow payload successfully.")
+
+            # ## DIAGNOSTIC SAVE #######################
+            # # Save the final payload to a file for inspection
+            # with open("payload.json", 'w') as outf:
+            #     outf.write(json.dumps(final_payload, indent=2));
+            # ## END DIAGNOSTIC ########################
 
             # print(f"\r\n\r\n----------------------\r\n\r\n{json.dumps(final_payload, indent=2)}\r\n\r\n------------------------\r\n\r\n")
 

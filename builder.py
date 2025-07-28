@@ -12,6 +12,7 @@ from invokeai.invocation_api import (
     StringOutput,
     UIComponent,
     UIType,
+    WithBoard,
     invocation,
 )
 from invokeai.backend.util.logging import warning, error
@@ -49,6 +50,11 @@ class FieldListBuilderInvocation(BaseInvocation):
 
         if hasattr(self, 'value'):
             input_field_value = self.value
+        elif hasattr(self, 'board'):
+            if self.board:
+                input_field_value = {'board_id': self.board.board_id}
+            else:
+                input_field_value = "auto"
         elif hasattr(self, 'model'):
             input_field_value = {
                 'key': self.model.key,
@@ -58,8 +64,10 @@ class FieldListBuilderInvocation(BaseInvocation):
                 'type': self.model.type,
                 'submodel_type': self.model.submodel_type if hasattr(self.model, 'submodel_type') else None
             }
-        else:
+        elif hasattr(self, 'collection'):
             input_field_value = self.collection
+        else:
+            raise ValueError(f"Unrecognized input field value in {json.dumps(self.keys())}")
         new_entry = {self.field_name: input_field_value}
         current_list.append(new_entry)
 
@@ -195,6 +203,23 @@ class FieldListBuilderImageCollectionInvocation(FieldListBuilderInvocation):
         return return_value
 
 
+@invocation(
+    "field_list_builder_board",
+    title="Field List Builder - Board",
+    tags=["json", "field", "workflow", "list", "utility", "board"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderBoardInvocation(FieldListBuilderInvocation, WithBoard):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries.
+    """
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value : StringOutput = super().invoke(context)
+        return return_value
+
+    
 @invocation(
     "field_list_builder_integer",
     title="Field List Builder - Integer",
