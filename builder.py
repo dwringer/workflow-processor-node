@@ -668,13 +668,13 @@ class FieldListBuilderCLIPGModelInvocation(FieldListBuilderInvocation):
 
 
 @invocation(
-    "field_list_builder_t2i_adapter_model",
-    title="Field List Builder - T2I-Adapter Model",
-    tags=["json", "field", "workflow", "list", "utility", "t2i", "adapter", "model"],
+    "field_list_builder_t2i_adapter",
+    title="Field List Builder - T2I-Adapter",
+    tags=["json", "field", "workflow", "list", "utility", "t2i", "adapter"],
     category="utilities",
     version="1.0.0"
 )
-class FieldListBuilderT2IAdapterModelInvocation(FieldListBuilderInvocation):
+class FieldListBuilderT2IAdapterInvocation(FieldListBuilderInvocation):
     """
     Builds or appends to a JSON list containing single key-value pair dictionaries, for a T2I-Adapter model.
     """

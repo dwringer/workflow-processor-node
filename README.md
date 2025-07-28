@@ -74,7 +74,7 @@ repository's code (or just clone the repository yourself) into your
 - [Field List Builder - SDXL Refiner Model](#field-list-builder---sdxl-refiner-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for an SDXL Refiner model.
 - [Field List Builder - String](#field-list-builder---string) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - String Collection](#field-list-builder---string-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
-- [Field List Builder - T2I-Adapter Model](#field-list-builder---t2i-adapter-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a T2I-Adapter model.
+- [Field List Builder - T2I-Adapter](#field-list-builder---t2i-adapter) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a T2I-Adapter model.
 - [Field List Builder - T5 Model](#field-list-builder---t5-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a T5 encoder model.
 - [Field List Builder - VAE Model](#field-list-builder---vae-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model (SD1.5, SDXL, SD3 compatible).
 
@@ -1072,12 +1072,12 @@ No output information available.
 </details>
 
 ---
-### Field List Builder - T2I-Adapter Model
-**ID:** `field_list_builder_t2i_adapter_model`
+### Field List Builder - T2I-Adapter
+**ID:** `field_list_builder_t2i_adapter`
 
 **Category:** utilities
 
-**Tags:** json, field, workflow, list, utility, t2i, adapter, model
+**Tags:** json, field, workflow, list, utility, t2i, adapter
 
 **Version:** 1.0.0
 
