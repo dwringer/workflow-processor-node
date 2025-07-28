@@ -477,6 +477,30 @@ class FieldListBuilderFLUXMainModelInvocation(FieldListBuilderInvocation):
 
 
 @invocation(
+    "field_list_builder_flux_redux_model",
+    title="Field List Builder - FLUX Redux Model",
+    tags=["json", "field", "workflow", "list", "utility", "flux", "redux", "model"],
+    category="utilities",
+    version="1.0.0"
+)
+class FieldListBuilderFLUXReduxModelBase(FieldListBuilderInvocation):
+    """
+    Builds or appends to a JSON list containing single key-value pair dictionaries, for a FLUX Redux model.
+    """
+
+    model: ModelIdentifierField = InputField(
+        description="The FLUX Redux model to use.",
+        title="FLUX Redux Model",
+        ui_order=1,
+        ui_type=UIType.FluxReduxModel,
+    )
+
+    def invoke(self, context: InvocationContext) -> StringOutput:
+        return_value: StringOutput = super().invoke(context)
+        return return_value
+
+
+@invocation(
     "field_list_builder_t5_model",
     title="Field List Builder - T5 Model",
     tags=["json", "field", "workflow", "list", "utility", "t5", "encoder"],

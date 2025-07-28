@@ -27,6 +27,8 @@ Note that field names given can be either the base name as defined in the node i
 
 Use strings to populate EnumFields, and just type the value exactly as it appears in the enum.
 
+##### Payload creation
+
 To create the payload JSON and make it available to be loaded by filename in the Enqueue Workflow Batch node, use your web browser's developer console [`<F12>` in Chrome] to watch for the appearance of an `enqueue_batch` request when you click the Invoke button in the frontend. When this appears, select it and navigate to view its request payload. Copy this payload in full, and paste it into a file; then, save the file into the `workflow_payloads/` subdirectory of this node's own folder in your invokeai nodes directory (`<invokeai-install-path>/nodes/workflow-processor-node/workflow_payloads/`).
 
 <details>
@@ -59,6 +61,7 @@ repository's code (or just clone the repository yourself) into your
 - [Field List Builder - Float](#field-list-builder---float) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Float Collection](#field-list-builder---float-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - FLUX Main Model](#field-list-builder---flux-main-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a main model.
+- [Field List Builder - FLUX Redux Model](#field-list-builder---flux-redux-model) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a FLUX Redux model.
 - [Field List Builder - FLUX VAE](#field-list-builder---flux-vae) - Builds or appends to a JSON list containing single key-value pair dictionaries, for a VAE model.
 - [Field List Builder - Image](#field-list-builder---image) - Builds or appends to a JSON list containing single key-value pair dictionaries.
 - [Field List Builder - Image Collection](#field-list-builder---image-collection) - Builds or appends to a JSON list containing single key-value pair dictionaries.
@@ -484,6 +487,44 @@ No output information available.
 | Name | Type | Description | Default |
 | ---- | ---- | ----------- | ------- |
 | `model` | `ModelIdentifierField` |  | None |
+
+
+</details>
+
+<details>
+<summary>
+
+#### Output
+
+</summary>
+
+No output information available.
+
+
+</details>
+
+---
+### Field List Builder - FLUX Redux Model
+**ID:** `field_list_builder_flux_redux_model`
+
+**Category:** utilities
+
+**Tags:** json, field, workflow, list, utility, flux, redux, model
+
+**Version:** 1.0.0
+
+**Description:** Builds or appends to a JSON list containing single key-value pair dictionaries, for a FLUX Redux model.
+
+<details>
+<summary>
+
+#### Inputs
+
+</summary>
+
+| Name | Type | Description | Default |
+| ---- | ---- | ----------- | ------- |
+| `model` | `ModelIdentifierField` | The FLUX Redux model to use. | None |
 
 
 </details>

@@ -23,6 +23,8 @@ intro: |
 
   Use strings to populate EnumFields, and just type the value exactly as it appears in the enum.
 
+  ##### Payload creation
+
   To create the payload JSON and make it available to be loaded by filename in the Enqueue Workflow Batch node, use your web browser's developer console [`<F12>` in Chrome] to watch for the appearance of an `enqueue_batch` request when you click the Invoke button in the frontend. When this appears, select it and navigate to view its request payload. Copy this payload in full, and paste it into a file; then, save the file into the `workflow_payloads/` subdirectory of this node's own folder in your invokeai nodes directory (`<invokeai-install-path>/nodes/workflow-processor-node/workflow_payloads/`).
 
   <details>
