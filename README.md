@@ -27,7 +27,18 @@ Note that field names given can be either the base name as defined in the node i
 
 Use strings to populate EnumFields, and just type the value exactly as it appears in the enum.
 
-To create the payload JSON and make it available to be loaded by filename in the Enqueue Workflow Batch node, use your web browser's developer console [<F12> in Chrome] to watch for the appearance of an `enqueue_batch` request when you click the Invoke button in the frontend. When this appears, select it and navigate to view its request payload. Copy this payload in full, and paste it into a file; then, save the file into the `workflow_payloads/` subdirectory of this node's own folder in your invokeai nodes directory (`<invokeai-install-path>/nodes/workflow-processor-node/workflow_payloads/`).
+To create the payload JSON and make it available to be loaded by filename in the Enqueue Workflow Batch node, use your web browser's developer console [`<F12>` in Chrome] to watch for the appearance of an `enqueue_batch` request when you click the Invoke button in the frontend. When this appears, select it and navigate to view its request payload. Copy this payload in full, and paste it into a file; then, save the file into the `workflow_payloads/` subdirectory of this node's own folder in your invokeai nodes directory (`<invokeai-install-path>/nodes/workflow-processor-node/workflow_payloads/`).
+
+<details>
+<summary>
+
+#### Chrome payload acquisition (animated explanation)
+
+</summary>
+
+![chrome_export](https://github.com/user-attachments/assets/910962a9-a451-4312-a859-4231a4e8b187)
+
+</details>
 
 ### Installation:
 
