@@ -92,7 +92,7 @@ class WorkflowProcessor:
         # (e.g., "integer-field-config") to corresponding Python native types
         # (e.g., `int`). This allows for Pydantic schema generation and type
         # coercion during input application.
-        self._type_map: Dict[str, Type] = {
+        self._type_map: Dict[str, Union[Type, Type[str | dict]]] = {
             "integer-field-config": int,
             "float-field-config": float,
             "string-field-config": str,
@@ -497,10 +497,17 @@ class WorkflowProcessor:
             # to the expected Python type. This prevents type-related errors
             # when modifying the workflow JSON.
             try:
-                if value is not None and not isinstance(value, expected_python_type):
-                    # Attempt explicit type conversion. Pydantic often handles this,
-                    # but explicit casting ensures robust behavior here.
-                    value = expected_python_type(value)
+                if expected_type_str == "board-field-config":
+                    # Special-case check for 'auto' board str instead of dict:
+                    if value is not None and isinstance(value, str) and (value.lower() == 'auto'):
+                        pass
+                    elif value is not None and not isinstance(value, dict):
+                        value = dict(value)
+                else:
+                    if value is not None and not isinstance(value, expected_python_type):
+                        # Attempt explicit type conversion. Pydantic often handles this,
+                        # but explicit casting ensures robust behavior here.
+                        value = expected_python_type(value)
             except (ValueError, TypeError) as e:
                 # Raise TypeError if the value cannot be converted, indicating invalid data.
                 raise TypeError(
@@ -518,7 +525,10 @@ class WorkflowProcessor:
                 info(f'handling image collection from: {value}')
                 value_for_payload = [{"image_name": v} for v in value]
             elif expected_type_str == "board-field-config":
-                value_for_payload = {"board_id": value['board_id']}
+                if isinstance(value, dict):
+                    value_for_payload = value
+                else:
+                    value_for_payload = None
             else:
                 value_for_payload = value # Use the coerced value directly
             
@@ -526,10 +536,12 @@ class WorkflowProcessor:
             if node_id in graph_nodes:
                 if field_name_in_node in graph_nodes[node_id]:
                     graph_nodes[node_id][field_name_in_node] = value_for_payload
+
+                # It is possible the payload graph has no board field, so we
+                # must add it manually to be sure,
                 elif field_name_in_node == "board":
-                    # Board wouldn't be present if the payload field was set on "Auto"
-                    # So, we have to add the key manually:
-                    graph_nodes[node_id]['board'] = value_for_payload
+                    if value_for_payload:  # assuming there's one to add.
+                        graph_nodes[node_id]['board'] = value_for_payload
 
                 else:
                     warning(f"Warning: Field '{field_name_in_node}' not found in graph node '{node_id}'. Skipping update for graph.")
