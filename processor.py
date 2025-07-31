@@ -199,11 +199,18 @@ class WorkflowProcessor:
             )
 
         # The 'children' list within the container's 'data' determines the explicit order of elements
-        ordered_element_ids = root_container.get("data", {}).get("children")
-        if not isinstance(ordered_element_ids, list):
+        initial_ordered_element_ids = root_container.get("data", {}).get("children")
+        if not isinstance(initial_ordered_element_ids, list):
             raise ValueError(
                 f"Container '{root_element_id}' is malformed. Expected 'data.children' as a list of element IDs."
             )
+        ordered_element_ids = []
+        for element_id in initial_ordered_element_ids:
+            if element_id.startswith('container'):
+                container_data = form_elements.get(element_id, {}).get("data", [])
+                ordered_element_ids.extend(container_data.get("children", {}))
+            else:
+                ordered_element_ids.append(element_id)
 
         # Create a quick lookup for node's input field labels from 'workflow.nodes'
         # This map will store: {node_id: {field_name: field_label}}
