@@ -1,23 +1,23 @@
-import copy
 import gzip
+import hashlib
 import http.client
 import json
-import os
 import uuid
 import zlib
 
+from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Any, Type, Optional, List, Union, Set # Import Set
+from typing import Dict, Any, Type, Optional, List, Union, Set
 
-from pydantic import BaseModel, Field, create_model, ValidationError, validator
+from pydantic import BaseModel, Field, ValidationError, validator
 
 from invokeai.invocation_api import (
     BaseInvocation,
     BaseInvocationOutput,
+    ImageField,
     InputField,
     InvocationContext,
     OutputField,
-    StringOutput,
     invocation,
     invocation_output,
     UIComponent,
@@ -32,9 +32,18 @@ app_config = get_config()
 # As confirmed by user, host is localhost:9090 for the API
 API_HOST = "localhost"
 API_PORT = app_config.port
-API_PATH = "/api/v1/queue/default/enqueue_batch" # This part seems standard
+API_PATH = "/api/v1/queue/default/enqueue_batch"
 
 
+# --- Define custom WorkflowMigrationError ---
+class WorkflowMigrationError(Exception):
+    """
+    Custom exception raised when a workflow cannot be transformed to a graph due to a malformed or unrecognized structure.
+    """
+    pass
+
+
+# Define support class for creating a workflow form schema
 class WorkflowProcessor:
     """
     The WorkflowProcessor is designed to bridge the gap between a raw InvokeAI
@@ -70,7 +79,7 @@ class WorkflowProcessor:
                                    definitions of user-facing fields within its 'form'.
         """
         self._workflow_payload: Dict[str, Any] = workflow_json_payload
-        
+
         # _ordered_exposed_fields: An internal, ordered list of dictionaries,
         # each representing a user-exposed field parsed directly from the
         # workflow's 'form' section. This list maintains the definition order,
@@ -103,7 +112,6 @@ class WorkflowProcessor:
             "board-field-config": dict,
             "model-field-config": dict,
             "object-field-config": dict,
-            # Extend this map as more InvokeAI field types are encountered.
         }
 
         # _field_lookup_map for flexible input resolution
@@ -113,13 +121,11 @@ class WorkflowProcessor:
         # based on the order they appear in the workflow's form definition.
         self._field_lookup_map: Dict[str, List[int]] = self._build_field_lookup_map()
 
-
     def _normalize_name(self, name: str) -> str:
         """Normalizes a name for case-insensitive and space-to-underscore matching."""
         return name.lower().replace(" ", "_")
 
-
-    def _build_field_lookup_map(self) -> Dict[str, List[int]]: # Changed return type
+    def _build_field_lookup_map(self) -> Dict[str, List[int]]:  # Changed return type
         """
         Builds a lookup map to resolve user-provided field keys (normalized field_name or field_label)
         to a list of indices into self._ordered_exposed_fields, preserving order.
@@ -130,7 +136,7 @@ class WorkflowProcessor:
             field_name_in_node = field_info["field_name_in_node"]
             if field_name_in_node not in lookup_map:
                 lookup_map[field_name_in_node] = []
-            lookup_map[field_name_in_node].append(idx) # Store index directly
+            lookup_map[field_name_in_node].append(idx)  # Store index directly
 
             # Store normalized field_label, if present
             field_label = field_info["field_label"]
@@ -138,9 +144,8 @@ class WorkflowProcessor:
                 normalized_label = self._normalize_name(field_label)
                 if normalized_label not in lookup_map:
                     lookup_map[normalized_label] = []
-                lookup_map[normalized_label].append(idx) # Store index directly
+                lookup_map[normalized_label].append(idx)  # Store index directly
         return lookup_map
-
 
     def _build_ordered_exposed_fields_list(self) -> List[Dict[str, Any]]:
         """
@@ -182,7 +187,7 @@ class WorkflowProcessor:
                 "Workflow payload does not contain a valid 'batch.workflow.form' section. "
                 "Expected a dictionary for 'form'."
             )
-        
+
         form_elements = workflow_form.get("elements")
         root_element_id = workflow_form.get("rootElementId")
 
@@ -218,8 +223,8 @@ class WorkflowProcessor:
         workflow_nodes_list = self._workflow_payload.get("batch", {}).get("workflow", {}).get("nodes", [])
         if not workflow_nodes_list:
             warning("Warning: 'batch.workflow.nodes' section is missing or empty. Field labels will not be available.")
-        
-        for node in workflow_nodes_list: # Iterate through the list of workflow nodes
+
+        for node in workflow_nodes_list:  # Iterate through the list of workflow nodes
             if isinstance(node, dict) and "id" in node and "data" in node and isinstance(node["data"], dict):
                 node_id = node["id"]
                 node_input_field_labels[node_id] = {} # Initialize for this node
@@ -231,7 +236,7 @@ class WorkflowProcessor:
                                 node_input_field_labels[node_id][field_name] = field_def["value"]["type"]
                             else:
                                 node_input_field_labels[node_id][field_name] = field_def["label"]
-        
+
         # Get a reference to the graph nodes for type inference
         graph_nodes = self._workflow_payload.get("batch", {}).get("graph", {}).get("nodes", {})
 
@@ -252,7 +257,7 @@ class WorkflowProcessor:
                 field_identifier = field_data.get("fieldIdentifier", {})
                 
                 node_id = field_identifier.get("nodeId")
-                field_name_in_node = field_identifier.get("fieldName") # This is the simplified name, e.g., "value", "prompt"
+                field_name_in_node = field_identifier.get("fieldName")  # This is the simplified name, e.g., "value", "prompt"
                 
                 # Retrieve the specific settings.type for the field.
                 # If 'settings' or 'type' is missing, attempt to infer.
@@ -295,7 +300,7 @@ class WorkflowProcessor:
                                 settings_type = "string-field-config"
                             # else: type remains None if not explicitly handled
 
-                    if not settings_type: # If inference from graph failed or was not applicable
+                    if not settings_type:  # If inference from graph failed or was not applicable
                         if (field_name_in_node.lower() == "board"):
                             settings_type = "board-field-config"
                         elif (field_name_in_node.lower() == "refiner_model"):
@@ -304,7 +309,7 @@ class WorkflowProcessor:
                             settings_type = "object-field-config"
                             warning(f"Malformed 'node-field' element with ID '{element_id}'. "
                                     f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'.")
-                                
+
                         # raise ValueError(
                         #     f"Malformed 'node-field' element with ID '{element_id}'. "
                         #     f"Missing 'settings.type' and cannot infer type for field '{field_name_in_node}'. "
@@ -318,7 +323,7 @@ class WorkflowProcessor:
                 # If field_label is an empty string, set it to None for cleaner output
                 if field_label == "":
                     field_label = None
-                
+
                 # Final validation before adding to the list.
                 if not all([node_id, field_name_in_node, settings_type]):
                     raise ValueError(
@@ -326,7 +331,7 @@ class WorkflowProcessor:
                         f"Missing critical data ('nodeId', 'fieldName', or inferred settings_type). "
                         f"Parsed data: {form_element}"
                     )
-                
+
                 ordered_list.append({
                     "node_id": node_id,
                     "field_name_in_node": field_name_in_node,
@@ -415,10 +420,10 @@ class WorkflowProcessor:
         # Create a deep copy to ensure the original workflow payload remains
         # unmodified. This is crucial for idempotent operations or re-use.
         modified_payload = json.loads(json.dumps(self._workflow_payload)) 
-        
+
         # Get references to the two sections we need to update
         graph_nodes = modified_payload.get("batch", {}).get("graph", {}).get("nodes", {})
-        
+
         workflow_nodes_list = modified_payload.get("batch", {}).get("workflow", {}).get("nodes", [])
 
         # Critical validation: Ensure both graph and workflow nodes exist.
@@ -490,7 +495,7 @@ class WorkflowProcessor:
             node_id = target_field_info["node_id"]
             field_name_in_node = target_field_info["field_name_in_node"] # The actual key for the node
             expected_type_str = target_field_info["settings_type"]
-            expected_python_type = self._type_map.get(expected_type_str) # No fallback here, must be mapped
+            expected_python_type = self._type_map.get(expected_type_str)  # No fallback here, must be mapped
 
             # Critical validation: Ensure we have a mapping for the InvokeAI field type.
             if expected_python_type is None:
@@ -538,7 +543,7 @@ class WorkflowProcessor:
                     value_for_payload = None
             else:
                 value_for_payload = value # Use the coerced value directly
-            
+
             # Apply the update to the graph node
             if node_id in graph_nodes:
                 if field_name_in_node in graph_nodes[node_id]:
@@ -570,6 +575,109 @@ class WorkflowProcessor:
         return modified_payload
 
 
+# Define function to convert workflow to payload template
+def transform_workflow_to_payload(workflow_data, auto_board_id=None):
+    """
+    Transforms the JSON structure from a workflow format to a batched payload format.
+
+    Args:
+        workflow_data (dict): The dictionary loaded from the workflow.json file.
+        auto_board_id: String identifying internal board id for Auto substitution.
+
+    Returns:
+        dict: A new dictionary representing the desired payload structure.
+    """
+    # Create the top-level payload structure
+    payload = {
+        "batch": {
+            "graph": {
+                "id": "",  # UUID will be placed later
+                "nodes": {},
+                "edges": []
+            },
+            "workflow": workflow_data,  # Insert the original workflow object
+            "runs": 1,
+            "origin": "workflows",
+            "destination": "gallery",
+            "data": []
+        },
+        "prepend": False
+    }
+
+    # --- Pre-process Edges for efficient lookup ---
+    # Create a set of (target_node_id, target_handle) tuples
+    # This allows for quick checking of the TODO criteria.
+    excluded_inputs = set()
+    for edge in workflow_data.get('edges', []):
+        target_node_id = edge.get('target')
+        target_handle = edge.get('targetHandle')
+        if target_node_id and target_handle:
+            excluded_inputs.add((target_node_id, target_handle))
+
+    # --- Node Transformation ---
+    # The workflow's nodes are a list, but the payload's nodes are a dictionary
+    # where the key is the node ID. We also need to flatten some nested data.
+    new_nodes = {}
+    for node in workflow_data.get('nodes', []):
+        node_id = node.get('id')
+        if not node_id:
+            continue
+
+        node_data = node.get('data', {})
+        new_node = {
+            # Copy type and id directly
+            "type": node_data.get('type'),
+            "id": node_id
+        }
+
+        # The payload structure flattens the 'inputs' dictionary from the workflow.
+        # We need to loop through the 'inputs' and extract the 'value' for each.
+        for input_name, input_details in node_data.get('inputs', {}).items():
+            # In the workflow, values are nested under a 'value' key.
+            # In the payload, they are directly assigned to the input_name.
+            input_value = input_details.get('value')
+            if input_value is not None:
+                if (input_name == 'board') and input_value.lower() == 'auto':
+                    if auto_board_id is not None:
+                        new_node['board'] = {
+                            "board_id": auto_board_id
+                        }
+                # Check against the pre-processed excluded_inputs set
+                elif (node_id, input_name) not in excluded_inputs:
+                    new_node[input_name] = input_details.get('value')  # input_value
+        
+        # Also, copy other top-level fields from the data object
+        # with a name change from camelCase to snake_case.
+        if 'useCache' in node_data:
+            new_node['use_cache'] = node_data['useCache']
+        if 'isIntermediate' in node_data:
+            new_node['is_intermediate'] = node_data['isIntermediate']
+
+        new_nodes[node_id] = new_node
+
+    payload['batch']['graph']['nodes'] = new_nodes
+
+    # --- Edge Transformation ---
+    # The workflow's edges are a list, and so are the payload's, but the structure is different.
+    new_edges = []
+    for edge in workflow_data.get('edges', []):
+        new_edge = {
+            "source": {
+                "node_id": edge.get('source'),
+                "field": edge.get('sourceHandle')
+            },
+            "destination": {
+                "node_id": edge.get('target'),
+                "field": edge.get('targetHandle')
+            }
+        }
+        new_edges.append(new_edge)
+
+    payload['batch']['graph']['edges'] = new_edges
+
+    return payload
+
+
 # Define the custom output for the node (even if it's just a confirmation)
 @invocation_output("EnqueueWorkflowBatchOutput")
 class EnqueueWorkflowBatchOutput(BaseInvocationOutput):
@@ -578,25 +686,32 @@ class EnqueueWorkflowBatchOutput(BaseInvocationOutput):
     message: str = OutputField(description="A descriptive message about the enqueue operation.")
 
 
-@invocation(
-    "enqueue_workflow_batch",
-    title="Enqueue Workflow Batch",
-    tags=["batch", "workflow", "automation", "api"],
-    category="system",
-    version="1.0.0",
-)
-class EnqueueWorkflowBatchInvocation(BaseInvocation):
+# Define cached processor retrieval function
+@lru_cache(maxsize=None)
+def _get_workflow_processor_from_content(file_content_hash: str, payload_json_str: str) -> WorkflowProcessor:
+    # This function receives the hash and the stringified JSON payload.
+    # It's what actually creates the WorkflowProcessor.
+    # The file_content_hash is primarily for the cache key.
+    info(f"Constructing WorkflowProcessor for hash: {file_content_hash[:8]}...")
+    payload_json = json.loads(payload_json_str)
+    if not ("batch" in payload_json):
+        info("Workflow file loaded; converting to payload template.")
+        try:
+            payload_json = transform_workflow_to_payload(payload_json)
+        except Exception as e:
+            raise WorkflowMigrationError(f"Could not transform workflow into payload template: {e}")
+    processor = WorkflowProcessor(payload_json)
+    return processor
+
+
+# --- Base Class for Enqueue Workflow Nodes ---
+class EnqueueWorkflowBase(BaseInvocation):
     """
-    Enqueues a workflow batch by applying user updates to a pre-defined payload
-    and sending it directly to the InvokeAI backend API using http.client.
+    Base class for enqueuing workflow batches to the InvokeAI backend.
+    Handles applying updates and sending the HTTP request.
     """
 
-    # --- Node Inputs ---
-    workflow_payload_filename: str = InputField(
-        description="The filename of the enqueue_batch JSON payload (e.g., 'my_workflow_payload.json') "
-                    "located in the node's 'workflow_payloads' subdirectory.",
-        ui_order=1,
-    )
+    # Common input for both derived classes
     field_list_updates: str = InputField(
         description="A JSON string containing updates for the workflow's exposed fields. "
                     "Keys can be field_name_in_node (e.g., 'value', 'prompt') or field_label "
@@ -608,7 +723,179 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
         ui_order=2,
     )
 
-    # --- Input Validators ---
+    @validator("field_list_updates")
+    def validate_field_list_updates_format(cls, v):
+        """
+        Validator to check if the field_list_updates is a valid JSON string.
+        Allows empty string to be valid (parsed as an empty dictionary or list).
+        """
+        if not v.strip():  # Treat empty string as valid JSON (empty list or dict)
+            return "[]"  # It expects a list of dicts for updates
+        try:
+            parsed_json = json.loads(v)
+            if not isinstance(parsed_json, list):
+                raise ValueError("Expected a JSON array (list) for 'field_list_updates'.")
+            for item in parsed_json:
+                if not isinstance(item, dict):
+                    raise ValueError("Each item in 'field_list_updates' list must be a JSON object (dictionary).")
+                if len(item) != 1:
+                    raise ValueError("Each item in 'field_list_updates' list must contain exactly one key-value pair.")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON format for field_list_updates: {e}")
+        return v
+
+    def _process_and_enqueue(self, context: InvocationContext, workflow_json_string: str) -> EnqueueWorkflowBatchOutput:
+        """
+        Internal method to process the workflow JSON string, apply updates,
+        and enqueue the batch. This contains the common logic.
+        """
+        try:
+            # 1. Initialize WorkflowProcessor with the selected payload
+            # Generate a hash of the content for caching
+            content_hash = hashlib.sha256(workflow_json_string.encode('utf-8')).hexdigest()
+
+            # Pass both the hash and the content (as a string) to the cached
+            # method. The hash is the primary cache key. The content string is
+            # passed so the cached function has access to the actual data.
+            # Initialize WorkflowProcessor with the selected payload content
+            processor = _get_workflow_processor_from_content(content_hash, workflow_json_string)
+
+            # 2. Parse and Validate the field_list_updates
+            # The JSON format validation is handled by the @validator, so json.loads won't fail here for format.
+            # It also ensures it's a list of single-key dicts.
+            # Parse and Validate the field_list_updates
+            user_updates_list = json.loads(self.field_list_updates)
+
+            # Dynamically create schema for validation
+            WorkflowInputSchema = processor.get_input_schema()
+
+            # The WorkflowInputSchema expects a 'updates' key which is a list.
+            # So, we need to pass a dictionary with 'updates' as the key.
+            validated_inputs = WorkflowInputSchema(updates=user_updates_list)
+            info("User inputs validated successfully against dynamic schema.")
+
+            # 3. Apply updates to the payload
+            # This can raise ValueError (e.g., due to an inconsistent workflow structure,
+            # though this should ideally be caught during workflow creation/testing).
+            final_payload = processor.apply_inputs(validated_inputs)
+            info("Inputs applied to workflow payload successfully.")
+
+            # ## DIAGNOSTIC SAVE #######################
+            # # Save the final payload to a file for inspection
+            # with open("payload.json", 'w') as outf:
+            #     outf.write(json.dumps(final_payload, indent=2));
+            # ## END DIAGNOSTIC ########################
+            
+
+            # 4. Prepare and send the POST request using http.client
+            conn = http.client.HTTPConnection(API_HOST, API_PORT, timeout=30)  # 30-second timeout
+            json_body = json.dumps(final_payload).encode('utf-8')
+
+            # Construct headers
+            # Note: Content-Length will be added automatically by http.client for POST requests with a body
+            headers = {
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Connection": "keep-alive",
+                "Content-Type": "application/json",
+                "Host": f"{API_HOST}:{API_PORT}",
+                "Origin": f"http://localhost:{API_PORT}",
+                "Referer": f"http://localhost:{API_PORT}/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-origin",
+                "User-Agent": "InvokeAI-WorkflowProcessorNode/1.0 (http.client)",
+                # Browser-specific headers like sec-ch-ua are generally not needed for API calls from backend
+            }
+
+            info(f"Sending POST request to http://{API_HOST}:{API_PORT}{API_PATH}")
+            try:
+                conn.request("POST", API_PATH, body=json_body, headers=headers)
+                response = conn.getresponse()
+
+                # --- Handle Content-Encoding (gzip, deflate) ---
+                response_bytes = response.read()
+                content_encoding = response.getheader('Content-Encoding')
+
+                response_body_decoded = ""  # Initialize here
+
+                if content_encoding == 'gzip':
+                    info("Decompressing gzipped response.")
+                    response_body_decoded = gzip.decompress(response_bytes).decode('utf-8')
+                elif content_encoding == 'deflate':
+                    info("Decompressing deflated response.")
+                    response_body_decoded = zlib.decompress(response_bytes).decode('utf-8')
+                else:
+                    response_body_decoded = response_bytes.decode('utf-8')
+
+                status_code = response.status
+                
+                info(f"API Response - Status Code: {status_code}")
+                # info(f"API Response - Body: {response_body_decoded}")
+
+                if 200 <= status_code < 300:  # Success range
+                    try:
+                        response_json = json.loads(response_body_decoded)
+                        message = response_json.get("message", "Batch enqueued successfully!")
+                    except json.JSONDecodeError:
+                        message = "Batch enqueued, but response was not valid JSON. Response body might be empty or malformed."
+                    return EnqueueWorkflowBatchOutput(status="Success", message=message)
+                else:
+                    # For non-2xx API responses, raise a RuntimeError
+                    error_message = f"API returned status {status_code}: {response_body_decoded}"
+                    error(error_message)
+                    raise RuntimeError(f"InvokeAI API call failed: {error_message}")
+
+            finally:
+                conn.close()  # Always close the connection
+
+        # --- Centralized Exception Handling for Workflow Stopping ---
+        # These exceptions indicate invalid input or critical processing failures
+        # that should stop the workflow.
+        except (ValueError, WorkflowMigrationError) as e:
+            # ValueError: Invalid JSON in payload, or a processing error in WorkflowProcessor
+            # WorkflowMigrationError: Unable to convert the workflow to a payload
+            error(f"Workflow processing error: {e}", exc_info=True)
+            raise ValueError(f"Workflow input or payload error: {e}")
+
+        except ValidationError as e:
+            error(f"Input validation failed: {e.errors()}", exc_info=True)
+            raise ValueError(f"Invalid updates provided: {e.errors()}")
+
+        except ConnectionRefusedError:
+            error(f"Connection to InvokeAI API refused. Is the InvokeAI backend running on {API_HOST}:{API_PORT}?", exc_info=True)
+            raise ConnectionRefusedError(f"Connection refused to InvokeAI API at {API_HOST}:{API_PORT}. Is it running?")
+
+        except http.client.HTTPException as e:
+            error(f"HTTP Client error during API call: {e}", exc_info=True)
+            raise http.client.HTTPException(f"HTTP Client error during API call: {e}")
+
+        except Exception as e:
+            error(f"An unhandled critical error occurred: {e}", exc_info=True)
+            raise RuntimeError(f"An unexpected critical error occurred: {e}")
+
+
+# --- Node 1: EnqueueWorkflowBatch ---
+@invocation(
+    "enqueue_workflow_batch",
+    title="Enqueue Workflow Batch",
+    tags=["batch", "workflow", "automation", "api"],
+    category="system",
+    version="1.0.0",
+)
+class EnqueueWorkflowBatchInvocation(EnqueueWorkflowBase):
+    """
+    Enqueues a workflow batch by applying user updates to a pre-defined payload
+    from a file and sending it directly to the InvokeAI backend API using http.client.
+    """
+
+    workflow_payload_filename: str = InputField(
+        description="The filename of the enqueue_batch JSON payload (e.g., 'my_workflow_payload.json') "
+                    "located in the node's 'workflow_payloads' subdirectory.",
+        ui_order=1,
+    )
+
     @validator("workflow_payload_filename")
     def validate_payload_file_exists(cls, v):
         """
@@ -628,169 +915,61 @@ class EnqueueWorkflowBatchInvocation(BaseInvocation):
                 raise ValueError(f"Workflow payload file '{v}' not found at '{payload_file_path}'.")
         return v
 
-    @validator("field_list_updates")
-    def validate_field_list_updates_format(cls, v):
-        """
-        Validator to check if the field_list_updates is a valid JSON string.
-        Allows empty string to be valid (parsed as an empty dictionary or list).
-        """
-        if not v.strip(): # Treat empty string as valid JSON (empty list or dict)
-            return "[]" # It expects a list of dicts for updates
-        try:
-            parsed_json = json.loads(v)
-            if not isinstance(parsed_json, list):
-                raise ValueError("Expected a JSON array (list) for 'field_list_updates'.")
-            for item in parsed_json:
-                if not isinstance(item, dict):
-                    raise ValueError("Each item in 'field_list_updates' list must be a JSON object (dictionary).")
-                if len(item) != 1:
-                    raise ValueError("Each item in 'field_list_updates' list must contain exactly one key-value pair.")
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON format for field_list_updates: {e}")
-        return v
-
-
-    # --- Node Execution Logic ---
     def invoke(self, context: InvocationContext) -> EnqueueWorkflowBatchOutput:
-        # The file existence check is now handled by the @validator.
+        # The file existence check is handled by the @validator.
         # We can directly construct the path here, knowing it exists.
         if 0 < len(self.workflow_payload_filename):
             node_dir = Path(__file__).parent
             payloads_dir = node_dir / "workflow_payloads"
             payload_file_path = payloads_dir / self.workflow_payload_filename
 
-            info(f"Attempting to load workflow payload from: {payload_file_path}")
+            info(f"Reading workflow from file: {payload_file_path}")
 
-            try:
-                # 1. Initialize WorkflowProcessor with the selected payload
-                # This can raise FileNotFoundError or ValueError (from JSONDecodeError in __init__)
-                with open(payload_file_path, 'r') as inf:
-                    payload_json = json.load(inf)
+            with open(payload_file_path, 'r', encoding='utf-8') as inf:
+                workflow_json_string = inf.read()
 
-                processor = WorkflowProcessor(payload_json)
-
-                # 2. Parse and Validate the field_list_updates
-                # The JSON format validation is handled by the @validator, so json.loads won't fail here for format.
-                # It also ensures it's a list of single-key dicts.
-                user_updates_list = json.loads(self.field_list_updates) 
-
-                # Dynamically create schema for validation
-                WorkflowInputSchema = processor.get_input_schema()
-
-                # The WorkflowInputSchema expects a 'updates' key which is a list.
-                # So, we need to pass a dictionary with 'updates' as the key.
-                validated_inputs = WorkflowInputSchema(updates=user_updates_list)
-                info("User inputs validated successfully against dynamic schema.")
-
-
-                # 3. Apply updates to the payload
-                # This can raise ValueError (e.g., due to an inconsistent workflow structure,
-                # though this should ideally be caught during workflow creation/testing).
-                final_payload = processor.apply_inputs(validated_inputs)
-                info("Inputs applied to workflow payload successfully.")
-
-                # ## DIAGNOSTIC SAVE #######################
-                # # Save the final payload to a file for inspection
-                # with open("payload.json", 'w') as outf:
-                #     outf.write(json.dumps(final_payload, indent=2));
-                # ## END DIAGNOSTIC ########################
-
-                # print(f"\r\n\r\n----------------------\r\n\r\n{json.dumps(final_payload, indent=2)}\r\n\r\n------------------------\r\n\r\n")
-
-                # 4. Prepare and send the POST request using http.client
-                conn = http.client.HTTPConnection(API_HOST, API_PORT, timeout=30) # 30-second timeout
-
-                # Encode the JSON payload to bytes
-                json_body = json.dumps(final_payload).encode('utf-8')
-
-                # Construct headers as per user's provided example
-                # Note: Content-Length will be added automatically by http.client for POST requests with a body
-                headers = {
-                    "Accept": "*/*",
-                    "Accept-Encoding": "gzip, deflate, br, zstd", # Request compressed content
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Connection": "keep-alive",
-                    "Content-Type": "application/json", # Crucial for JSON body
-                    "Host": f"{API_HOST}:{API_PORT}", # As confirmed by user, include port here
-                    "Origin": f"http://localhost:{API_PORT}", # Origin of the request (can be UI or custom node)
-                    "Referer": f"http://localhost:{API_PORT}/", # Referer of the request (can be UI or custom node)
-                    "Sec-Fetch-Dest": "empty",
-                    "Sec-Fetch-Mode": "cors",
-                    "Sec-Fetch-Site": "same-origin",
-                    "User-Agent": "InvokeAI-WorkflowProcessorNode/1.0 (http.client)", # Custom user agent for clarity
-                    # Browser-specific headers like sec-ch-ua are generally not needed for API calls from backend
-                }
-
-                info(f"Sending POST request to http://{API_HOST}:{API_PORT}{API_PATH}")
-                try:
-                    conn.request("POST", API_PATH, body=json_body, headers=headers)
-                    response = conn.getresponse()
-
-                    # --- Handle Content-Encoding (gzip, deflate) ---
-                    response_bytes = response.read()
-                    content_encoding = response.getheader('Content-Encoding')
-
-                    response_body_decoded = "" # Initialize here
-
-                    if content_encoding == 'gzip':
-                        info("Decompressing gzipped response.")
-                        response_body_decoded = gzip.decompress(response_bytes).decode('utf-8')
-                    elif content_encoding == 'deflate':
-                        info("Decompressing deflated response.")
-                        response_body_decoded = zlib.decompress(response_bytes).decode('utf-8')
-                    else:
-                        response_body_decoded = response_bytes.decode('utf-8')
-
-                    status_code = response.status
-
-                    info(f"API Response - Status Code: {status_code}")
-                    # info(f"API Response - Body: {response_body_decoded}")
-
-                    if 200 <= status_code < 300: # Success range
-                        try:
-                            response_json = json.loads(response_body_decoded)
-                            message = response_json.get("message", "Batch enqueued successfully!")
-                        except json.JSONDecodeError:
-                            message = "Batch enqueued, but response was not valid JSON. Response body might be empty or malformed."
-                        return EnqueueWorkflowBatchOutput(status="Success", message=message)
-                    else:
-                        # For non-2xx API responses, raise a RuntimeError
-                        error_message = f"API returned status {status_code}: {response_body_decoded}"
-                        error(error_message)
-                        raise RuntimeError(f"InvokeAI API call failed: {error_message}")
-
-                finally:
-                    conn.close() # Always close the connection
-
-
-            # --- Centralized Exception Handling for Workflow Stopping ---
-            # These exceptions indicate invalid input or critical processing failures
-            # that should stop the workflow.
-            except (FileNotFoundError, ValueError) as e:
-                # FileNotFoundError: payload file not found (though largely caught by validator)
-                # ValueError: Invalid JSON in payload, or a processing error in WorkflowProcessor
-                error(f"Workflow processing error: {e}", exc_info=True)
-                raise ValueError(f"Workflow input or payload error: {e}") # Re-raise as ValueError
-
-            except ValidationError as e:
-                # This catches validation errors from the dynamically generated WorkflowInputSchema
-                error(f"Input validation failed: {e.errors()}", exc_info=True)
-                raise ValueError(f"Invalid updates provided: {e.errors()}") # Re-raise as ValueError for clarity
-
-            except ConnectionRefusedError:
-                # Specific network error for connection issues
-                error(f"Connection to InvokeAI API refused. Is the InvokeAI backend running on {API_HOST}:{API_PORT}?", exc_info=True)
-                raise ConnectionRefusedError(f"Connection refused to InvokeAI API at {API_HOST}:{API_PORT}. Is it running?")
-
-            except http.client.HTTPException as e:
-                # General HTTP client errors during the request sending
-                error(f"HTTP Client error during API call: {e}", exc_info=True)
-                raise http.client.HTTPException(f"HTTP Client error during API call: {e}")
-
-            except Exception as e:
-                # Catch any other unexpected exceptions and wrap them as a RuntimeError
-                error(f"An unhandled critical error occurred in Enqueue Workflow Batch node: {e}", exc_info=True)
-                raise RuntimeError(f"An unexpected critical error occurred: {e}")
-            
+            return self._process_and_enqueue(context, workflow_json_string)
         else:
-            return EnqueueWorkflowBatchOutput(status="None", message="No workflow payload was provided.")
+            return EnqueueWorkflowBatchOutput(status="None", message="No workflow payload filename was provided.")
+
+
+# --- Node 2: Enqueue Image Workflow Batch ---
+@invocation(
+    "enqueue_image_workflow_batch",
+    title="Enqueue Image Workflow Batch",
+    tags=["batch", "workflow", "automation", "api", "image", "metadata"],
+    category="system",
+    version="1.0.0",
+)
+class EnqueueImageWorkflowBatchInvocation(EnqueueWorkflowBase):
+    """
+    Enqueues a workflow batch by extracting the 'invokeai_workflow' JSON string
+    from an input image's metadata, applying user updates, and sending it directly
+    to the InvokeAI backend API using http.client.
+    """
+
+    image: ImageField = InputField(
+        description="The image containing the 'invokeai_workflow' JSON string in its metadata.",
+        ui_order=1,
+    )
+
+    def invoke(self, context: InvocationContext) -> EnqueueWorkflowBatchOutput:
+        if not self.image:
+            return EnqueueWorkflowBatchOutput(status="None", message="No input image was provided.")
+        try:
+            image_in = context.images.get_pil(self.image.image_name)
+            info_data = image_in.info
+
+            # Ensure 'invokeai_workflow' key exists and is not empty
+            if 'invokeai_workflow' in info_data and info_data['invokeai_workflow'].strip():
+                workflow_json_string = info_data['invokeai_workflow']
+                info("Extracted 'invokeai_workflow' from image metadata.")
+                return self._process_and_enqueue(context, workflow_json_string)
+            else:
+                raise ValueError("Image does not contain 'invokeai_workflow' metadata or it is empty.")
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"The 'invokeai_workflow' metadata in the image is not valid JSON: {e}")
+        except Exception as e:
+            error(f"Error processing image for workflow metadata: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to extract workflow from image: {e}")
