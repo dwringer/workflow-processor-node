@@ -301,9 +301,9 @@ class WorkflowProcessor:
                             # else: type remains None if not explicitly handled
 
                     if not settings_type:  # If inference from graph failed or was not applicable
-                        if (field_name_in_node.lower() == "board"):
+                        if field_name_in_node.lower() == "board":
                             settings_type = "board-field-config"
-                        elif (field_name_in_node.lower() == "refiner_model"):
+                        elif field_name_in_node.lower().endswith("model"):  #  == "refiner_model"):
                             settings_type = "model-field-config"
                         else:
                             settings_type = "object-field-config"
@@ -555,6 +555,11 @@ class WorkflowProcessor:
                     if value_for_payload:  # assuming there's one to add.
                         graph_nodes[node_id]['board'] = value_for_payload
 
+                # The same is also possible for model fields.
+                elif field_name_in_node.lower().endswith('model'):
+                    if value_for_payload:
+                        graph_nodes[node_id][field_name_in_node] = value_for_payload
+
                 else:
                     warning(f"Warning: Field '{field_name_in_node}' not found in graph node '{node_id}'. Skipping update for graph.")
             else:
@@ -637,7 +642,7 @@ def transform_workflow_to_payload(workflow_data, auto_board_id=None):
             # In the payload, they are directly assigned to the input_name.
             input_value = input_details.get('value')
             if input_value is not None:
-                if (input_name == 'board') and input_value.lower() == 'auto':
+                if (input_name == 'board') and isinstance(input_value, str) and input_value.lower() == 'auto':
                     if auto_board_id is not None:
                         new_node['board'] = {
                             "board_id": auto_board_id

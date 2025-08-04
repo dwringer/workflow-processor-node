@@ -28,4 +28,4 @@ from .builder import (
     FieldListBuilderT5ModelInvocation,
     FieldListBuilderVAEModelInvocation,
 )
-from .processor import EnqueueWorkflowBatchInvocation
+from .processor import EnqueueWorkflowBatchInvocation, EnqueueImageWorkflowBatchInvocation
