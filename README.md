@@ -62,7 +62,7 @@ To help you get up and running quickly, this pack includes some example workflow
 <summary>Building a Linear UI Form</summary>
 
 This GIF demonstrates the process of creating a simple generation graph and then using the InvokeAI UI to define a linear UI form for it. This form is what a parent workflow will use to pass in new parameters.
-* **[Embed GIF 1 here]**
+![ewb1](https://github.com/user-attachments/assets/3bc0e592-50e2-40ba-995f-a819b17d5f90)
 
 </details>
 
@@ -70,7 +70,7 @@ This GIF demonstrates the process of creating a simple generation graph and then
 <summary>Creating a Calling Workflow</summary>
 
 Watch this GIF to see a workflow enqueuing another workflow in action. It shows how the `Enqueue Workflow Batch` node is used to dynamically update parameters in a child workflow, baking them in for effortless reproducibility.
-* **[Embed GIF 2 here]**
+![ewb2](https://github.com/user-attachments/assets/df4d12bb-efbf-411f-9abb-fecab763782e)
 
 </details>
 
@@ -78,7 +78,7 @@ Watch this GIF to see a workflow enqueuing another workflow in action. It shows 
 <summary>Multiple Workflow Processing</summary>
 
 This advanced example shows the power of modular workflows. A single invocation of a calling workflow uses the `Enqueue Image Workflow Batch` node to send a prompt through three different generation workflows, each with additional extra context for creating thematic variations.
-* **[Embed GIF 3 here]**
+![ewb3](https://github.com/user-attachments/assets/b9930146-1e35-4a63-b794-ff15275c379b)
 
 </details>
 
