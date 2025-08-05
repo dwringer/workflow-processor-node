@@ -2,6 +2,7 @@ import gzip
 import hashlib
 import http.client
 import json
+import os
 import uuid
 import zlib
 
@@ -29,7 +30,6 @@ from invokeai.backend.util.logging import info, warning, error
 app_config = get_config()
 
 # Define the InvokeAI API host and path
-# As confirmed by user, host is localhost:9090 for the API
 API_HOST = "localhost"
 API_PORT = app_config.port
 API_PATH = "/api/v1/queue/default/enqueue_batch"
@@ -905,28 +905,48 @@ class EnqueueWorkflowBatchInvocation(EnqueueWorkflowBase):
     def validate_payload_file_exists(cls, v):
         """
         Validator to check if the specified workflow payload file exists
-        in the 'workflow_payloads' subdirectory.
+        in the 'workflow_payloads' subdirectory or the user's downloads folder.
         """
         if 0 < len(v):
             # __file__ refers to the current module. cls.__module__ can be used
             # to find the path in a more general way if the class is part of a package.
             # For a direct file, Path(__file__).parent is reliable.
+            # 1. Define the node's workflow_payloads directory
             node_dir = Path(__file__).parent
             payloads_dir = node_dir / "workflow_payloads"
             payload_file_path = payloads_dir / v
 
-            if not payload_file_path.is_file():
-                # Raise ValueError for Pydantic validation failures
-                raise ValueError(f"Workflow payload file '{v}' not found at '{payload_file_path}'.")
+            # 2. Define the user's Downloads directory (platform-independent)
+            downloads_dir = Path.home() / "Downloads"
+            payload_file_path_downloads = downloads_dir / v
+            
+            if not payload_file_path.is_file() and not payload_file_path_downloads.is_file():
+                # If not found in either, raise a ValueError
+                raise ValueError(
+                    f"Workflow payload file '{v}' not found at '{payload_file_path_node}' or '{payload_file_path_downloads}'."
+                )
         return v
 
     def invoke(self, context: InvocationContext) -> EnqueueWorkflowBatchOutput:
         # The file existence check is handled by the @validator.
-        # We can directly construct the path here, knowing it exists.
+        # We can directly construct the path here, knowing it exists in one of the two locations.
         if 0 < len(self.workflow_payload_filename):
             node_dir = Path(__file__).parent
             payloads_dir = node_dir / "workflow_payloads"
-            payload_file_path = payloads_dir / self.workflow_payload_filename
+            payload_file_path_node = payloads_dir / self.workflow_payload_filename
+
+            downloads_dir = Path.home() / "Downloads"
+            payload_file_path_downloads = downloads_dir / self.workflow_payload_filename
+
+            # We now need to determine which path to use.
+            if payload_file_path_node.is_file():
+                payload_file_path = payload_file_path_node
+            elif payload_file_path_downloads.is_file():
+                payload_file_path = payload_file_path_downloads
+            else:
+                # This case should theoretically not be reached due to the validator,
+                # but it's good practice to handle it just in case.
+                raise FileNotFoundError(f"Workflow payload file '{self.workflow_payload_filename}' not found.")
 
             info(f"Reading workflow from file: {payload_file_path}")
 

@@ -1,6 +1,6 @@
 # workflow-processor-node
 
-**Repository Name:** InvokeAI Workflow Processor Node
+**Repository Name:** InvokeAI Workflow Processor Node (Enqueue [Image] Workflow Batch)
 
 **Author:** dwringer
 
@@ -20,13 +20,15 @@ This InvokeAI node pack introduces the concept of *workflow chaining*, enabling 
 
 ### How it works:
 
-InvokeAI workflows already utilize a form builder to expose fields in a linear user interface. This node set leverages those forms to create an interface abstraction for enqueuing the execution of one workflow from within another using the **Enqueue Workflow Batch** or **Enqueue Image Workflow Batch** nodes.
+InvokeAI workflows already utilize a form builder to expose fields in a linear user interface. This node set leverages those forms to create an interface abstraction for enqueuing the execution of one workflow from within another using the **Enqueue Workflow Batch** or **Enqueue Image Workflow Batch** nodes\*.
 
 Users define each stage's input and output interfaces in terms of the form builder and this repository's corresponding **Field List Builder** nodes. Through these, stages can be chained, with each sequentially passing outputs (and/or additional fields inherited from its parent) to the subsequent stage's input form.
 
+\**Note on the use of the term "batch": while InvokeAI's *"Batch Generator"* nodes typically queue multiple distinct invocations, the "Batch" in this pack's node names refers to the underlying* `/api/v1/queue/enqueue_batch` *API endpoint used for *any* generation request. Currently, execution of these nodes enqueues a *single* modified workflow instance.*
+
 ### Further details:
 
-The *Enqueue Workflow Batch* and *Enqueue Image Workflow Batch* nodes each operate by applying user updates to a pre-defined workflow and sending it directly to the InvokeAI backend API. The first node can load workflows from saved workflow JSON files or saved browser enqueue_batch request payloads, while the second loads workflows directly from InvokeAI images (these are embedded by default in every image saved to the gallery). The nodes generate a schema from the loaded workflow input form then use that to validate an ordered list, provided as another node input, used to update values in the workflow graph. That list is structured like so:
+The *Enqueue Workflow Batch* and *Enqueue Image Workflow Batch* nodes each operate by applying user updates to a pre-defined workflow and sending it directly to the InvokeAI backend API. The first node can load workflows from saved workflow JSON files or saved browser enqueue_batch request payloads, while the second loads workflows directly from InvokeAI images (these are embedded by default in every image saved to the gallery). The nodes generate a schema from the loaded workflow input form then use that to validate an ordered list, provided as another node input, used to update values in the workflow graph. That list can be structured such as:
 ```
 [
  {"prompt": "a portrait of a housecat wearing a tie and business attire"},
@@ -50,6 +52,71 @@ To make a workflow available to load by filename, download it from the Invoke UI
 ### Installation:
 
 To install these nodes, simply place the folder containing this repository's code (or just clone the repository yourself) into your `invokeai/nodes` folder.
+
+### Getting started:
+To help you get up and running quickly, this pack includes some example workflows and animated demonstrations. You'll find the workflow files in the `workflow_payloads` subdirectory of the node pack's folder. These examples illustrate both the creation of simple workflow UIs and the calling of one workflow from another.
+
+#### Visual Guide (Animated Demos - click to view)
+
+<details>
+<summary>Building a Linear UI Form</summary>
+
+This GIF demonstrates the process of creating a simple generation graph and then using the InvokeAI UI to define a linear UI form for it. This form is what a parent workflow will use to pass in new parameters.
+* **[Embed GIF 1 here]**
+
+</details>
+
+<details>
+<summary>Creating a Calling Workflow</summary>
+
+Watch this GIF to see a workflow enqueuing another workflow in action. It shows how the `Enqueue Workflow Batch` node is used to dynamically update parameters in a child workflow, baking them in for effortless reproducibility.
+* **[Embed GIF 2 here]**
+
+</details>
+
+<details>
+<summary>Multiple Workflow Processing</summary>
+
+This advanced example shows the power of modular workflows. A single invocation of a calling workflow uses the `Enqueue Image Workflow Batch` node to send a prompt through three different generation workflows, each with additional extra context for creating thematic variations.
+* **[Embed GIF 3 here]**
+
+</details>
+
+#### Example Workflows
+The `workflow_payloads` subdirectory contains several example `.json` files for you to use and inspect. For our purposes these can be divided into two categories: 'Target Workflows' (the generations that are being called) and 'Calling Workflows' (the parent workflows that initiate the calls).
+
+<details>
+
+<summary>Target Workflows (click to expand)</summary>
+
+###### SD 1.5 Generation
+This workflow file (`example_sd15_payload_1.json`) is a basic text-to-image setup for an SD1.5 model. It's designed to be called by a parent workflow and has a simple linear UI form to expose core parameters like prompt, seed, and image dimensions.
+###### SDXL Generation
+Similar to the SD1.5 example, this workflow (`example_sdxl_payload_1.json`) is configured for the SDXL model. It includes additional nodes and parameters to handle the SDXL model's specific requirements.
+###### FLUX.1 Generation
+This workflow (`example_flux_payload_1.json`) is a simple setup for the FLUX.1 model, ready to be called by a parent workflow. It is also the target for the 'preset' example to show how parameters can be easily swapped.
+
+</details>
+
+<details>
+
+<summary>Calling Workflows (click to expand)</summary>
+
+###### SD1.5 Calling Workflow
+This example (`parent_example_sd15_workflow.json`) demonstrates how to call the SD1.5 target workflow, passing in a prompt and other parameters via a `Field List Builder` chain.
+###### SDXL Calling Workflow
+This example (`parent_example_sdxl_workflow.json`) shows how to call the SDXL target workflow. It highlights how to handle a more complex set of parameters for a larger model.
+###### FLUX.1 Calling Workflow
+This workflow (`parent_example_flux_workflow.json`) is configured to call the FLUX.1 target workflow. It serves as the base for the 'presets' example and shows how a different model can be called with the same core node pack.
+###### FLUX.1 Preset Calling Workflow
+This example (`parent_example_flux_workflow_presets.json`) demonstrates a powerful use case: using a JSON string as a 'preset.' It shows how a single parent workflow can be configured to generate images in different sizes or aspect ratios (e.g., 'Portrait' or 'Landscape') by simply swapping out a JSON string fed into the `Enqueue Workflow Batch` node.
+
+</details>
+
+#### Known Issues & Limitations
+
+* **Batch Generation Control:** The *Enqueue Workflow Batch* node currently enqueues only a single execution of a saved workflow, regardless of whether that workflow was originally designed to run as a batch. While the target workflow will still execute as a batch if configured to do so, its batch parameters cannot be dynamically adjusted via these nodes. Future support for controlling batch generation through these nodes may be considered based on user demand.
+* **"Board: Auto" Behavior:** If a saved workflow payload was configured with a "Board: Auto" setting, its generated images will default to the board it was targeting when originally created. To ensure generated images from a child workflow are directed to the currently active "AUTO" board in the UI, parent workflows must explicitly send a *Field List Builder - Board* node, set to "Auto," into the *Enqueue Workflow Batch* node, with a corresponding board field added to the child workflow's linear UI form.
 
 ## Overview
 ### Nodes
@@ -1286,3 +1353,4 @@ No output information available.
 
 ## Footnotes
 For questions/comments/concerns/etc, use github or drop into the InvokeAI discord where you'll probably find someone who can help.
+

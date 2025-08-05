@@ -1,0 +1,515 @@
+{
+  "name": "Enqueue Workflow Batch Node - example_sd15_payload_1.json",
+  "author": "dwringer",
+  "description": "An example workflow showing how to use Field List Builder nodes to send data to the form builder UI of a spawned child workflow using a saved request payload .json file.",
+  "version": "v1.0.0",
+  "contact": "<on InvokeAI Discord>",
+  "tags": "example, workflow processor, enqueue batch",
+  "notes": "",
+  "exposedFields": [],
+  "meta": {
+    "category": "user",
+    "version": "3.0.0"
+  },
+  "id": "a78e43ff-3067-424c-8f1b-9e57cd76d91f",
+  "form": {
+    "elements": {
+      "root": {
+        "id": "root",
+        "data": {
+          "layout": "column",
+          "children": [
+            "heading-yp3LgdYEBT",
+            "text-omlhPPBgbD",
+            "node-field-rDwoxLdue1",
+            "divider-ENZ3rYvzEi",
+            "heading-zkROwWWMVl",
+            "text-gKXsmLNlGg",
+            "node-field-P7C6bmNS4T",
+            "node-field-hMeJjAaKe4",
+            "divider-0HxZVVmunB",
+            "heading-sLkXCA2ow0",
+            "text-2QnQmfFATu",
+            "divider-weRufQXUZU",
+            "heading-4Tbxugwerc",
+            "text-0VbyE3D6LT",
+            "node-field-w1JrqBgslN",
+            "divider-Zmao2S4X19",
+            "heading-Jl64hdqLUI",
+            "text-RTyE8ixyBU"
+          ]
+        },
+        "type": "container"
+      },
+      "text-omlhPPBgbD": {
+        "id": "text-omlhPPBgbD",
+        "parentId": "root",
+        "data": {
+          "content": "For this example it's impossible to have a preset model because everyone's selection is different. Therefore, an SD1.5 Model for generation must be input here using the appropriate Field List Builder node and passed to the child workflow graph."
+        },
+        "type": "text"
+      },
+      "heading-yp3LgdYEBT": {
+        "id": "heading-yp3LgdYEBT",
+        "parentId": "root",
+        "data": {
+          "content": "Model Selection"
+        },
+        "type": "heading"
+      },
+      "divider-ENZ3rYvzEi": {
+        "id": "divider-ENZ3rYvzEi",
+        "parentId": "root",
+        "type": "divider"
+      },
+      "heading-sLkXCA2ow0": {
+        "id": "heading-sLkXCA2ow0",
+        "parentId": "root",
+        "data": {
+          "content": "Latent Noise Seed"
+        },
+        "type": "heading"
+      },
+      "text-2QnQmfFATu": {
+        "id": "text-2QnQmfFATu",
+        "parentId": "root",
+        "data": {
+          "content": "The seed isn't included in this form because currently a Random Integer node is feeding it. Note how every child workflow generation uses a different seed, but hard codes it in place: loading the workflow from an image and running it again will make the exact same image."
+        },
+        "type": "text"
+      },
+      "divider-0HxZVVmunB": {
+        "id": "divider-0HxZVVmunB",
+        "parentId": "root",
+        "type": "divider"
+      },
+      "heading-zkROwWWMVl": {
+        "id": "heading-zkROwWWMVl",
+        "parentId": "root",
+        "data": {
+          "content": "Prompt"
+        },
+        "type": "heading"
+      },
+      "text-gKXsmLNlGg": {
+        "id": "text-gKXsmLNlGg",
+        "parentId": "root",
+        "data": {
+          "content": "If desired, enter a positive and/or negative prompt here and you'll see that they get passed on to the child workflow's \"Positive Prompt\" / \"Negative Prompt\" input string primitives and embedded as positive_prompt / negative_prompt metadata in that image."
+        },
+        "type": "text"
+      },
+      "node-field-P7C6bmNS4T": {
+        "id": "node-field-P7C6bmNS4T",
+        "parentId": "root",
+        "data": {
+          "fieldIdentifier": {
+            "nodeId": "b5be67b9-86dd-4ec9-bd2b-b75befcb7367",
+            "fieldName": "value"
+          },
+          "showDescription": true,
+          "settings": {
+            "type": "string-field-config",
+            "component": "textarea"
+          }
+        },
+        "type": "node-field"
+      },
+      "divider-weRufQXUZU": {
+        "id": "divider-weRufQXUZU",
+        "parentId": "root",
+        "type": "divider"
+      },
+      "heading-4Tbxugwerc": {
+        "id": "heading-4Tbxugwerc",
+        "parentId": "root",
+        "data": {
+          "content": "Board Selection"
+        },
+        "type": "heading"
+      },
+      "text-0VbyE3D6LT": {
+        "id": "text-0VbyE3D6LT",
+        "parentId": "root",
+        "data": {
+          "content": "Even if you always just leave \"Board\" set to \"Auto\", a saved payload will point to whatever board was selected as \"AUTO\" in the UI at the time of its original creation. Therefore, we must provide a board input here and set it to \"Auto\" if we want to update the correct board at runtime."
+        },
+        "type": "text"
+      },
+      "node-field-w1JrqBgslN": {
+        "id": "node-field-w1JrqBgslN",
+        "parentId": "root",
+        "data": {
+          "fieldIdentifier": {
+            "nodeId": "9653d91c-fdfc-4295-bc9c-46ad823c3841",
+            "fieldName": "board"
+          },
+          "showDescription": true
+        },
+        "type": "node-field"
+      },
+      "divider-Zmao2S4X19": {
+        "id": "divider-Zmao2S4X19",
+        "parentId": "root",
+        "type": "divider"
+      },
+      "heading-Jl64hdqLUI": {
+        "id": "heading-Jl64hdqLUI",
+        "parentId": "root",
+        "data": {
+          "content": "Exercise"
+        },
+        "type": "heading"
+      },
+      "text-RTyE8ixyBU": {
+        "id": "text-RTyE8ixyBU",
+        "parentId": "root",
+        "data": {
+          "content": "Add \"height\" and \"width\" parameters to this workflow and test your understanding by making sre they work. Try passing a different scheduler (it's currently using DDIM). Then replace this section of the form with inputs for the new fields, and save the workflow so you can get it back! [Note this parent workflow *won't* be embedded in the images!]"
+        },
+        "type": "text"
+      },
+      "node-field-hMeJjAaKe4": {
+        "id": "node-field-hMeJjAaKe4",
+        "parentId": "root",
+        "data": {
+          "fieldIdentifier": {
+            "nodeId": "26d9f6f7-da7b-46fd-a80f-6dada7b2b493",
+            "fieldName": "value"
+          },
+          "showDescription": true,
+          "settings": {
+            "type": "string-field-config",
+            "component": "input"
+          }
+        },
+        "type": "node-field"
+      },
+      "node-field-rDwoxLdue1": {
+        "id": "node-field-rDwoxLdue1",
+        "parentId": "root",
+        "data": {
+          "fieldIdentifier": {
+            "nodeId": "e356368c-27fb-4cf7-8797-3e5c43766e08",
+            "fieldName": "model"
+          },
+          "showDescription": true
+        },
+        "type": "node-field"
+      }
+    },
+    "rootElementId": "root"
+  },
+  "nodes": [
+    {
+      "id": "ce44e63d-0457-4335-a213-5681d5ca974f",
+      "type": "invocation",
+      "data": {
+        "id": "ce44e63d-0457-4335-a213-5681d5ca974f",
+        "version": "1.0.0",
+        "nodePack": "workflow-processor-node",
+        "label": "",
+        "notes": "",
+        "type": "field_list_builder_integer",
+        "inputs": {
+          "existing_json": {
+            "name": "existing_json",
+            "label": "",
+            "description": "",
+            "value": ""
+          },
+          "field_name": {
+            "name": "field_name",
+            "label": "",
+            "description": "",
+            "value": "seed"
+          },
+          "value": {
+            "name": "value",
+            "label": "",
+            "description": "",
+            "value": 0
+          }
+        },
+        "isOpen": true,
+        "isIntermediate": true,
+        "useCache": true
+      },
+      "position": {
+        "x": -425,
+        "y": 825
+      }
+    },
+    {
+      "id": "c2d645b7-43b4-43a8-a265-4b64722356e3",
+      "type": "invocation",
+      "data": {
+        "id": "c2d645b7-43b4-43a8-a265-4b64722356e3",
+        "version": "1.0.1",
+        "nodePack": "invokeai",
+        "label": "",
+        "notes": "",
+        "type": "rand_int",
+        "inputs": {
+          "low": {
+            "name": "low",
+            "label": "",
+            "description": "",
+            "value": 0
+          },
+          "high": {
+            "name": "high",
+            "label": "",
+            "description": "",
+            "value": 2147483647
+          }
+        },
+        "isOpen": true,
+        "isIntermediate": true,
+        "useCache": false
+      },
+      "position": {
+        "x": -425,
+        "y": 600
+      }
+    },
+    {
+      "id": "1ac3da2d-bac1-4b51-93a8-9c554a5673b9",
+      "type": "invocation",
+      "data": {
+        "id": "1ac3da2d-bac1-4b51-93a8-9c554a5673b9",
+        "version": "1.0.0",
+        "nodePack": "workflow-processor-node",
+        "label": "",
+        "notes": "",
+        "type": "enqueue_workflow_batch",
+        "inputs": {
+          "workflow_payload_filename": {
+            "name": "workflow_payload_filename",
+            "label": "",
+            "description": "",
+            "value": "example_sd15_payload_1.json"
+          },
+          "field_list_updates": {
+            "name": "field_list_updates",
+            "label": "",
+            "description": "",
+            "value": ""
+          }
+        },
+        "isOpen": true,
+        "isIntermediate": true,
+        "useCache": false
+      },
+      "position": {
+        "x": -50,
+        "y": 725
+      }
+    },
+    {
+      "id": "b5be67b9-86dd-4ec9-bd2b-b75befcb7367",
+      "type": "invocation",
+      "data": {
+        "id": "b5be67b9-86dd-4ec9-bd2b-b75befcb7367",
+        "version": "1.0.0",
+        "nodePack": "workflow-processor-node",
+        "label": "",
+        "notes": "",
+        "type": "field_list_builder_string",
+        "inputs": {
+          "existing_json": {
+            "name": "existing_json",
+            "label": "",
+            "description": "",
+            "value": ""
+          },
+          "field_name": {
+            "name": "field_name",
+            "label": "",
+            "description": "",
+            "value": "positive prompt"
+          },
+          "value": {
+            "name": "value",
+            "label": "Positive Prompt",
+            "description": "",
+            "value": ""
+          }
+        },
+        "isOpen": true,
+        "isIntermediate": true,
+        "useCache": true
+      },
+      "position": {
+        "x": -800,
+        "y": 450
+      }
+    },
+    {
+      "id": "9653d91c-fdfc-4295-bc9c-46ad823c3841",
+      "type": "invocation",
+      "data": {
+        "id": "9653d91c-fdfc-4295-bc9c-46ad823c3841",
+        "version": "1.0.0",
+        "nodePack": "workflow-processor-node",
+        "label": "",
+        "notes": "",
+        "type": "field_list_builder_board",
+        "inputs": {
+          "board": {
+            "name": "board",
+            "label": "",
+            "description": "The board in which to save the image.",
+            "value": "auto"
+          },
+          "existing_json": {
+            "name": "existing_json",
+            "label": "",
+            "description": "",
+            "value": ""
+          },
+          "field_name": {
+            "name": "field_name",
+            "label": "",
+            "description": "",
+            "value": "board"
+          }
+        },
+        "isOpen": true,
+        "isIntermediate": true,
+        "useCache": true
+      },
+      "position": {
+        "x": -800,
+        "y": 1025
+      }
+    },
+    {
+      "id": "e356368c-27fb-4cf7-8797-3e5c43766e08",
+      "type": "invocation",
+      "data": {
+        "id": "e356368c-27fb-4cf7-8797-3e5c43766e08",
+        "version": "1.0.0",
+        "nodePack": "workflow-processor-node",
+        "label": "",
+        "notes": "",
+        "type": "field_list_builder_sd15_main_model",
+        "inputs": {
+          "existing_json": {
+            "name": "existing_json",
+            "label": "",
+            "description": "",
+            "value": ""
+          },
+          "field_name": {
+            "name": "field_name",
+            "label": "",
+            "description": "",
+            "value": "model"
+          },
+          "model": {
+            "name": "model",
+            "label": "",
+            "description": ""
+          }
+        },
+        "isOpen": true,
+        "isIntermediate": true,
+        "useCache": true
+      },
+      "position": {
+        "x": -1175,
+        "y": 725
+      }
+    },
+    {
+      "id": "26d9f6f7-da7b-46fd-a80f-6dada7b2b493",
+      "type": "invocation",
+      "data": {
+        "id": "26d9f6f7-da7b-46fd-a80f-6dada7b2b493",
+        "version": "1.0.0",
+        "nodePack": "workflow-processor-node",
+        "label": "",
+        "notes": "",
+        "type": "field_list_builder_string",
+        "inputs": {
+          "existing_json": {
+            "name": "existing_json",
+            "label": "",
+            "description": "",
+            "value": ""
+          },
+          "field_name": {
+            "name": "field_name",
+            "label": "",
+            "description": "",
+            "value": "negative prompt"
+          },
+          "value": {
+            "name": "value",
+            "label": "Negative Prompt",
+            "description": "",
+            "value": ""
+          }
+        },
+        "isOpen": true,
+        "isIntermediate": true,
+        "useCache": true
+      },
+      "position": {
+        "x": -800,
+        "y": 725
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-ce44e63d-0457-4335-a213-5681d5ca974fvalue-1ac3da2d-bac1-4b51-93a8-9c554a5673b9field_list_updates",
+      "type": "default",
+      "source": "ce44e63d-0457-4335-a213-5681d5ca974f",
+      "target": "1ac3da2d-bac1-4b51-93a8-9c554a5673b9",
+      "sourceHandle": "value",
+      "targetHandle": "field_list_updates"
+    },
+    {
+      "id": "reactflow__edge-c2d645b7-43b4-43a8-a265-4b64722356e3value-ce44e63d-0457-4335-a213-5681d5ca974fvalue",
+      "type": "default",
+      "source": "c2d645b7-43b4-43a8-a265-4b64722356e3",
+      "target": "ce44e63d-0457-4335-a213-5681d5ca974f",
+      "sourceHandle": "value",
+      "targetHandle": "value"
+    },
+    {
+      "id": "reactflow__edge-9653d91c-fdfc-4295-bc9c-46ad823c3841value-ce44e63d-0457-4335-a213-5681d5ca974fexisting_json",
+      "type": "default",
+      "source": "9653d91c-fdfc-4295-bc9c-46ad823c3841",
+      "target": "ce44e63d-0457-4335-a213-5681d5ca974f",
+      "sourceHandle": "value",
+      "targetHandle": "existing_json"
+    },
+    {
+      "id": "reactflow__edge-e356368c-27fb-4cf7-8797-3e5c43766e08value-b5be67b9-86dd-4ec9-bd2b-b75befcb7367existing_json",
+      "type": "default",
+      "source": "e356368c-27fb-4cf7-8797-3e5c43766e08",
+      "target": "b5be67b9-86dd-4ec9-bd2b-b75befcb7367",
+      "sourceHandle": "value",
+      "targetHandle": "existing_json"
+    },
+    {
+      "id": "reactflow__edge-b5be67b9-86dd-4ec9-bd2b-b75befcb7367value-26d9f6f7-da7b-46fd-a80f-6dada7b2b493existing_json",
+      "type": "default",
+      "source": "b5be67b9-86dd-4ec9-bd2b-b75befcb7367",
+      "target": "26d9f6f7-da7b-46fd-a80f-6dada7b2b493",
+      "sourceHandle": "value",
+      "targetHandle": "existing_json"
+    },
+    {
+      "id": "reactflow__edge-26d9f6f7-da7b-46fd-a80f-6dada7b2b493value-9653d91c-fdfc-4295-bc9c-46ad823c3841existing_json",
+      "type": "default",
+      "source": "26d9f6f7-da7b-46fd-a80f-6dada7b2b493",
+      "target": "9653d91c-fdfc-4295-bc9c-46ad823c3841",
+      "sourceHandle": "value",
+      "targetHandle": "existing_json"
+    }
+  ]
+}

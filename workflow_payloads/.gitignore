@@ -1,3 +1,11 @@
 # For git repo updates, ignore everything in this directory (except for this file)
 *
 !.gitignore
+!example_sd15_payload_1.json
+!example_sdxl_payload_1.json
+!example_sdxl_vae_payload_1.json
+!example_flux_payload_1.json
+!parent_example_sd15_workflow.json
+!parent_example_sdxl_workflow.json
+!parent_example_flux_workflow.json
+!parent_example_flux_workflow_presets.json

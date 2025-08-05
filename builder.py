@@ -810,20 +810,21 @@ class FieldListBuilderJoinInvocation(BaseInvocation):
     )
 
     def invoke(self, context: InvocationContext) -> StringOutput:
+        first_list = []
         try:
             first_list = json.loads(self.first)
             if not isinstance(first_list, list):
                 warning("First List input was not a list. Using a blank list.")
-                first_list = []
         except json.JSONDecodeError:
-                error(f"Failed to decode first_list: {self.first_list}. Using a blank list.")
+                error(f"Failed to decode first_list: {self.first}. Using a blank list.")
+
+        second_list = []
         try:
             second_list = json.loads(self.second)
             if not isinstance(second_list, list):
                 warning("Second List input was not a list. Using a blank list.")
-                second_list = []
         except json.JSONDecodeError:
-                error(f"Failed to decode first_list: {self.first_list}. Using a blank list.")
+                error(f"Failed to decode first_list: {self.first}. Using a blank list.")
 
         output_json_obj = first_list + second_list
         
